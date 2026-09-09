@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
+import { isInteger } from "lodash-es";
 import { DataSource, Repository } from "typeorm";
 
 import {
@@ -164,5 +165,5 @@ function boundedInteger(
   maximum: number,
 ): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
+  return isInteger(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
 }

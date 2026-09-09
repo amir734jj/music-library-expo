@@ -2,6 +2,7 @@ import type { GlobalConfigModel, UpdateGlobalConfigRequest } from "@music-librar
 import { BadRequestException, Injectable, type OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { randomBytes } from "node:crypto";
+import { isInteger, isString } from "lodash-es";
 import { Repository } from "typeorm";
 
 import { GlobalConfigRow } from "#entities";
@@ -92,7 +93,7 @@ export class GlobalConfigService implements OnModuleInit {
     for (const [rawKey, rawValue] of Object.entries(request.values)) {
       const key = rawKey.trim().toUpperCase();
       if (!SUPPORTED_KEYS.has(key)) continue;
-      if (typeof rawValue !== "string") {
+      if (!isString(rawValue)) {
         throw new BadRequestException(`Configuration value for ${key} must be a string`);
       }
       await this.rows.save({
@@ -124,5 +125,5 @@ function integerValue(
   maximum: number,
 ): number {
   const value = Number.parseInt(values.get(key) ?? "", 10);
-  return Number.isInteger(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
+  return isInteger(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
 }

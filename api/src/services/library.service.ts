@@ -10,6 +10,7 @@ import type {
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash } from "node:crypto";
+import { isInteger } from "lodash-es";
 import { In, Repository } from "typeorm";
 
 import {
@@ -364,5 +365,5 @@ function createKeyFingerprint(key: Buffer): string {
 
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  return isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }

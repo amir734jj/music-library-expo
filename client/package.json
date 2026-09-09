@@ -21,6 +21,7 @@
     "expo-symbols": "~56.0.7",
     "expo-system-ui": "~56.0.5",
     "expo-web-browser": "~56.0.6",
+    "lodash-es": "^4.17.21",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.4",
+    "@types/lodash-es": "^4.17.12",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },

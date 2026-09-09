@@ -15,6 +15,7 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash } from "node:crypto";
+import { isString } from "lodash-es";
 import { Repository } from "typeorm";
 
 import { CachedTrack, Station, User } from "#entities";
@@ -81,7 +82,7 @@ export class AdminService {
     const nextKeyValue = Object.entries(request.values).find(
       ([key]) => key.trim().toUpperCase() === CONFIG_KEYS.trendingCacheEncryptionKey,
     )?.[1];
-    if (typeof nextKeyValue === "string" && nextKeyValue !== current.trendingCacheEncryptionKey) {
+    if (isString(nextKeyValue) && nextKeyValue !== current.trendingCacheEncryptionKey) {
       const oldKey = decodeKey(current.trendingCacheEncryptionKey);
       const nextKey = decodeKey(nextKeyValue);
       if (!nextKey) throw new Error("Cache key must be a Base64-encoded 32-byte value");

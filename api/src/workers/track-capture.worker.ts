@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
+import { isInteger } from "lodash-es";
 import { Repository } from "typeorm";
 
 import { CachedTrack, GlobalConfigRow } from "#entities";
@@ -86,7 +87,7 @@ function decodeKey(value: string | undefined): Buffer | null {
 
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  return isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function normalize(value: string): string {

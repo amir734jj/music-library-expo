@@ -23,6 +23,7 @@ import type {
   UserResponse,
 } from '@music-library/core';
 import Constants from 'expo-constants';
+import { isArray } from 'lodash-es';
 import { Platform } from 'react-native';
 
 type QueryValue = boolean | number | string | null | undefined;
@@ -80,7 +81,7 @@ function resolveApiBaseUrl(): string {
 }
 
 function errorMessage(body: NestErrorBody | undefined, status: number): string {
-  if (Array.isArray(body?.message)) {
+  if (isArray(body?.message)) {
     return body.message.join('\n');
   }
   return body?.message || body?.error || `Request failed (${status})`;

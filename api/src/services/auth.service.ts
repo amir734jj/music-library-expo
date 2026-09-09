@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcryptjs";
+import { isObjectLike } from "lodash-es";
 import { DataSource, QueryFailedError } from "typeorm";
 
 import type { JwtPayload } from "#contracts";
@@ -114,8 +115,7 @@ function normalizeDisplayName(value: string | null): string | null {
 
 function isPostgresError(error: unknown, code: string): boolean {
   return error instanceof QueryFailedError &&
-    typeof error.driverError === "object" &&
-    error.driverError !== null &&
+    isObjectLike(error.driverError) &&
     "code" in error.driverError &&
     error.driverError.code === code;
 }

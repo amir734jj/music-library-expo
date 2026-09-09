@@ -1,6 +1,7 @@
 import type { DirectoryImportSummary } from "@music-library/core";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { isArray } from "lodash-es";
 import { Repository } from "typeorm";
 
 import { Station } from "#entities";
@@ -40,7 +41,7 @@ export class StationDirectoryImportService {
     let rejected = 0;
 
     for (const [genre, entries] of Object.entries(catalog)) {
-      if (!Array.isArray(entries)) continue;
+      if (!isArray(entries)) continue;
       if (NON_MUSIC_GENRES.has(genre.trim().toLowerCase())) {
         rejected += entries.length;
         continue;
