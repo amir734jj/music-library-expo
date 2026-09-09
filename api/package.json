@@ -1,0 +1,95 @@
+{
+  "name": "@music-library/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#config": {
+      "types": "./src/config/index.ts",
+      "default": "./dist/config/index.js"
+    },
+    "#contracts": {
+      "types": "./src/contracts/index.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "#controllers": {
+      "types": "./src/controllers/index.ts",
+      "default": "./dist/controllers/index.js"
+    },
+    "#database": {
+      "types": "./src/database/index.ts",
+      "default": "./dist/database/index.js"
+    },
+    "#decorators": {
+      "types": "./src/decorators/index.ts",
+      "default": "./dist/decorators/index.js"
+    },
+    "#entities": {
+      "types": "./src/entities/index.ts",
+      "default": "./dist/entities/index.js"
+    },
+    "#guards": {
+      "types": "./src/guards/index.ts",
+      "default": "./dist/guards/index.js"
+    },
+    "#modules": {
+      "types": "./src/modules/index.ts",
+      "default": "./dist/modules/index.js"
+    },
+    "#services": {
+      "types": "./src/services/index.ts",
+      "default": "./dist/services/index.js"
+    },
+    "#strategies": {
+      "types": "./src/strategies/index.ts",
+      "default": "./dist/strategies/index.js"
+    },
+    "#workers": {
+      "types": "./src/workers/index.ts",
+      "default": "./dist/workers/index.js"
+    }
+  },
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migration:generate": "typeorm-ts-node-esm migration:generate src/database/migrations/Generated -d src/database/data-source.ts",
+    "migration:run": "typeorm-ts-node-esm migration:run -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-esm migration:revert -d src/database/data-source.ts"
+  },
+  "dependencies": {
+    "@amir734jj/stream-ripper": "1.0.0",
+    "@music-library/core": "0.1.0",
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.1",
+    "@nestjs/jwt": "^12.0.1",
+    "@nestjs/passport": "^12.0.0",
+    "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/serve-static": "^12.0.0",
+    "@nestjs/schedule": "^12.0.1",
+    "@nestjs/typeorm": "^12.0.0",
+    "bcryptjs": "^3.0.3",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.23.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^1.1.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.1",
+    "@types/passport-jwt": "^4.0.1",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typeorm-ts-node-esm": "^0.3.20",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "music-library-expo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.16.0",
+  "workspaces": [
+    "api",
+    "client",
+    "core"
+  ],
+  "scripts": {
+    "dev": "npm run start --workspace @music-library/client",
+    "android": "npm run android --workspace @music-library/client",
+    "web": "npm run web --workspace @music-library/client",
+    "desktop": "npm run tauri --workspace @music-library/client -- dev",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint \"{api,client,core}/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "npm run lint -- --fix",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
+    "eslint": "^8.57.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.6.0"
+  }
+}

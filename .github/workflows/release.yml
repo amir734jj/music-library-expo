@@ -1,0 +1,137 @@
+name: Release bundle
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: music-library-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: image
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="build-${GITHUB_RUN_NUMBER}"
+          fi
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}:${version}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.name }}
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
+
+  desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
+      - run: npm install --workspaces --include-workspace-root
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm run build --workspace @music-library/core
+      - run: npm run tauri --workspace @music-library/client -- build --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: client/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm install --workspaces --include-workspace-root
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm run build --workspace @music-library/core
+      - run: npm exec --workspace @music-library/client -- expo prebuild --platform android --non-interactive
+      - name: Build APK
+        working-directory: client/android
+        run: ./gradlew assembleRelease
+      - name: Collect APK
+        run: cp client/android/app/build/outputs/apk/release/app-release.apk music-library.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: music-library.apk
+          if-no-files-found: error
+
+  release:
+    needs: [container, desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          path: release-input
+      - name: Assemble single release file
+        shell: bash
+        env:
+          IMAGE: ${{ needs.container.outputs.image }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="build-${GITHUB_RUN_NUMBER}"
+          fi
+          mkdir -p release/desktop release/android release/container
+          cp release-input/desktop/*.exe release/desktop/
+          cp release-input/android/*.apk release/android/
+          cp Dockerfile release/container/Dockerfile
+          printf '%s\n' "$IMAGE" > release/container/image.txt
+          cp FEATURE_PARITY.md release/FEATURE_PARITY.md
+          (cd release && sha256sum desktop/* android/* container/Dockerfile > SHA256SUMS)
+          (cd release && zip -r "../music-library-${version}.zip" .)
+      - name: Publish one GitHub release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="build-${GITHUB_RUN_NUMBER}"
+          fi
+          gh release create "$version" "music-library-${version}.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Music Library ${version}" \
+            --notes "Combined Windows desktop installer, Android APK, Dockerfile, GHCR image reference, checksums, and feature parity report."

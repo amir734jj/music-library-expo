@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+dist/
+web-build/
+coverage/
+*.log
+.env
+.env.local
+client/src-tauri/target/
+client/src-tauri/gen/

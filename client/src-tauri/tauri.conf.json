@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Music Library",
+  "version": "0.1.0",
+  "identifier": "com.hesamian.musiclibrary",
+  "build": {
+    "beforeBuildCommand": "npm run export:web",
+    "beforeDevCommand": "npm run web -- --port 8081",
+    "devUrl": "http://localhost:8081",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "capabilities": ["main-window"],
+      "csp": "default-src 'self'; connect-src 'self' https://music-library.coolify.hesamian.com http://127.0.0.1:* http://localhost:*; media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*; img-src 'self' data: blob: https:"
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "Music Library",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 760,
+        "minHeight": 540,
+        "resizable": true,
+        "center": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "category": "Music",
+    "shortDescription": "Radio discovery, playback, and offline library",
+    "targets": ["nsis"],
+    "windows": {
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser"
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    }
+  }
+}
