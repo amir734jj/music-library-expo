@@ -1,12 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
-import { isInteger } from "lodash-es";
 import { DataSource, Repository } from "typeorm";
 
 import {
   ArtistSubscription,
-  GlobalConfigRow,
   PlayObservation,
   Station,
   UserAlert,
@@ -14,6 +12,7 @@ import {
 import {
   StationProbeStatusService,
   StationCaptureLeaseService,
+  GlobalConfigService,
   stationGenrePrioritySql,
   StreamMetadataProbeService,
   TrackCaptureQueue,
@@ -31,9 +30,9 @@ export class StationProbeWorker {
     private readonly probeService: StreamMetadataProbeService,
     private readonly captureQueue: TrackCaptureQueue,
     private readonly captureLeases: StationCaptureLeaseService,
+    private readonly globalConfig: GlobalConfigService,
     private readonly status: StationProbeStatusService,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
-    @InjectRepository(GlobalConfigRow) private readonly config: Repository<GlobalConfigRow>,
   ) {}
 
   @Interval(PROBE_INTERVAL_MS)
@@ -143,18 +142,12 @@ export class StationProbeWorker {
     timeoutMs: number;
     batchSize: number;
   }> {
-    const rows = await this.config.findBy([
-      { key: "PROBING_ENABLED" },
-      { key: "PROBE_CONCURRENCY" },
-      { key: "PROBE_TIMEOUT_SECONDS" },
-      { key: "PROBE_BATCH_SIZE" },
-    ]);
-    const values = new Map(rows.map((row) => [row.key, row.value]));
+    const config = await this.globalConfig.get();
     return {
-      enabled: values.get("PROBING_ENABLED") !== "false",
-      concurrency: boundedInteger(values.get("PROBE_CONCURRENCY"), 5, 1, 50),
-      timeoutMs: boundedInteger(values.get("PROBE_TIMEOUT_SECONDS"), 12, 1, 120) * 1_000,
-      batchSize: boundedInteger(values.get("PROBE_BATCH_SIZE"), 100, 1, 1_000),
+      enabled: config.probingEnabled,
+      concurrency: config.probeConcurrency,
+      timeoutMs: config.probeTimeoutSeconds * 1_000,
+      batchSize: config.probeBatchSize,
     };
   }
 }
@@ -163,12 +156,3 @@ function normalizeArtist(value: string): string {
   return value.trim().toLocaleUpperCase("en-US");
 }
 
-function boundedInteger(
-  value: string | undefined,
-  fallback: number,
-  minimum: number,
-  maximum: number,
-): number {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return isInteger(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback;
-}

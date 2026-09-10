@@ -24,6 +24,9 @@ export const CONFIG_KEYS = {
 } as const;
 
 const SUPPORTED_KEYS = new Set<string>(Object.values(CONFIG_KEYS));
+const CONFIG_KEY_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(CONFIG_KEYS).map(([property, key]) => [property.toUpperCase(), key]),
+);
 
 @Injectable()
 export class GlobalConfigService implements OnModuleInit {
@@ -91,7 +94,7 @@ export class GlobalConfigService implements OnModuleInit {
   async save(request: UpdateGlobalConfigRequest, userId: string): Promise<void> {
     const now = new Date();
     for (const [rawKey, rawValue] of Object.entries(request.values)) {
-      const key = rawKey.trim().toUpperCase();
+      const key = normalizeConfigKey(rawKey);
       if (!SUPPORTED_KEYS.has(key)) continue;
       if (!isString(rawValue)) {
         throw new BadRequestException(`Configuration value for ${key} must be a string`);
@@ -104,6 +107,11 @@ export class GlobalConfigService implements OnModuleInit {
       });
     }
   }
+}
+
+export function normalizeConfigKey(value: string): string {
+  const normalized = value.trim().toUpperCase();
+  return CONFIG_KEY_ALIASES[normalized] ?? normalized;
 }
 
 export function decodeKey(value?: string): Buffer | null {

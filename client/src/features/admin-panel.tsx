@@ -11,6 +11,14 @@ import { api } from '@/services/api';
 
 type AdminMode = 'config' | 'probes' | 'users';
 
+const probeConfigKeys = [
+  'probingEnabled',
+  'probeConcurrency',
+  'probeTimeoutSeconds',
+  'probeBatchSize',
+] as const satisfies readonly (keyof GlobalConfigModel)[];
+const probeConfigKeySet = new Set<string>(probeConfigKeys);
+
 function configLabel(key: string): string {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -83,6 +91,15 @@ export function AdminPanel() {
     await runMutation(() => api.updateAdminConfig({ values: configValues }), 'Configuration saved.');
   }
 
+  async function saveProbeConfig(): Promise<void> {
+    await runMutation(
+      () => api.updateAdminConfig({
+        values: Object.fromEntries(probeConfigKeys.map((key) => [key, configValues[key]])),
+      }),
+      'Probe configuration saved.',
+    );
+  }
+
   async function runImport(): Promise<void> {
     setError(null);
     setResult(null);
@@ -110,6 +127,15 @@ export function AdminPanel() {
           <Metric label="Cached tracks" value={String(cache?.songCount ?? 0)} />
           <Metric label="Cache size" value={`${((cache?.sizeBytes ?? 0) / 1_048_576).toFixed(1)} MB`} />
         </View>
+        {config && <ThemedView type="backgroundElement" style={styles.probeConfig}>
+          <View style={styles.probeConfigHeader}><View style={styles.copy}><ThemedText style={styles.toolbarTitle}>Probe configuration</ThemedText><ThemedText themeColor="textSecondary">Control how many station streams the server listens to at once.</ThemedText></View><View style={styles.switchGroup}><ThemedText>{configValues.probingEnabled === 'true' ? 'Enabled' : 'Disabled'}</ThemedText><Switch onValueChange={(value) => setConfigValues((current) => ({ ...current, probingEnabled: String(value) }))} thumbColor="#FFFFFF" trackColor={{ false: '#A9AEA9', true: Palette.accent }} value={configValues.probingEnabled === 'true'} /></View></View>
+          <View style={styles.configGrid}>
+            <ConfigNumberField label="Concurrent listeners" maximum={100} minimum={1} onChange={(value) => setConfigValues((current) => ({ ...current, probeConcurrency: value }))} themeColor={theme.text} value={configValues.probeConcurrency ?? ''} />
+            <ConfigNumberField label="Listen timeout (seconds)" maximum={60} minimum={2} onChange={(value) => setConfigValues((current) => ({ ...current, probeTimeoutSeconds: value }))} themeColor={theme.text} value={configValues.probeTimeoutSeconds ?? ''} />
+            <ConfigNumberField label="Stations per batch" maximum={1000} minimum={1} onChange={(value) => setConfigValues((current) => ({ ...current, probeBatchSize: value }))} themeColor={theme.text} value={configValues.probeBatchSize ?? ''} />
+          </View>
+          <ActionButton label="Save probe configuration" onPress={() => void saveProbeConfig()} />
+        </ThemedView>}
         <ThemedView type="backgroundElement" style={styles.toolbar}>
           <View style={styles.toolbarCopy}><ThemedText style={styles.toolbarTitle}>Directory and probe controls</ThemedText><ThemedText themeColor="textSecondary">Last batch {probes?.lastBatchCompletedAt ? new Date(probes.lastBatchCompletedAt).toLocaleString() : 'has not completed'}</ThemedText></View>
           <View style={styles.actions}><ActionButton label="Import directory" onPress={() => void runImport()} /><ActionButton label="Enable all" quiet onPress={() => void runMutation(() => api.updateAllStationProbes({ isProbeEnabled: true }), 'All station probes enabled.')} /><ActionButton label="Disable all" quiet onPress={() => void runMutation(() => api.updateAllStationProbes({ isProbeEnabled: false }), 'All station probes disabled.')} /><ActionButton danger label="Clear cache" onPress={() => void runMutation(() => api.clearCache(), 'Track cache cleared.')} /></View>
@@ -131,7 +157,7 @@ export function AdminPanel() {
       {mode === 'config' && config && <>
         <SectionHeader title="Global configuration" />
         <ThemedView type="backgroundElement" style={styles.configGrid}>
-          {Object.keys(config).map((key) => <View key={key} style={styles.field}><ThemedText style={styles.fieldLabel}>{configLabel(key)}</ThemedText><TextInput autoCapitalize="none" onChangeText={(value) => setConfigValues((current) => ({ ...current, [key]: value }))} placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text }]} value={configValues[key] ?? ''} /></View>)}
+          {Object.keys(config).filter((key) => !probeConfigKeySet.has(key)).map((key) => <View key={key} style={styles.field}><ThemedText style={styles.fieldLabel}>{configLabel(key)}</ThemedText><TextInput autoCapitalize="none" onChangeText={(value) => setConfigValues((current) => ({ ...current, [key]: value }))} placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text }]} value={configValues[key] ?? ''} /></View>)}
         </ThemedView>
         <View style={styles.actions}><ActionButton label="Save configuration" onPress={() => void saveConfig()} /><ActionButton label="Rotate encryption key" quiet onPress={() => void runMutation(() => api.rotateCacheEncryptionKey(), 'Cache encryption key rotated.')} /></View>
       </>}
@@ -141,6 +167,10 @@ export function AdminPanel() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return <ThemedView type="backgroundElement" style={styles.metric}><ThemedText style={styles.metricValue}>{value}</ThemedText><ThemedText style={styles.metricLabel} themeColor="textSecondary">{label}</ThemedText></ThemedView>;
+}
+
+function ConfigNumberField({ label, maximum, minimum, onChange, themeColor, value }: { label: string; maximum: number; minimum: number; onChange(value: string): void; themeColor: string; value: string }) {
+  return <View style={styles.field}><ThemedText style={styles.fieldLabel}>{label}</ThemedText><TextInput inputMode="numeric" maxLength={4} onChangeText={onChange} style={[styles.input, { color: themeColor }]} value={value} /><ThemedText style={styles.range} themeColor="textSecondary">{minimum} to {maximum}</ThemedText></View>;
 }
 
 const styles = StyleSheet.create({
@@ -158,6 +188,9 @@ const styles = StyleSheet.create({
   metricValue: { fontFamily: 'Georgia', fontSize: 24, fontWeight: '700' },
   pagination: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.three },
   pending: { backgroundColor: '#FFF4D6', color: Palette.ink, padding: Spacing.three },
+  probeConfig: { gap: Spacing.three, padding: Spacing.three },
+  probeConfigHeader: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, justifyContent: 'space-between' },
+  range: { fontSize: 12 },
   result: { backgroundColor: '#DDE9E2', color: Palette.accentStrong, padding: Spacing.three },
   rowTitle: { fontSize: 15, fontWeight: '800' },
   switchGroup: { alignItems: 'center', flexDirection: 'row', gap: Spacing.two },

@@ -25,6 +25,7 @@ import {
   CONFIG_KEYS,
   decodeKey,
   GlobalConfigService,
+  normalizeConfigKey,
 } from "./global-config.service.js";
 import { StationProbeStatusService } from "./station-probe-status.service.js";
 
@@ -80,7 +81,7 @@ export class AdminService {
   async updateConfig(request: UpdateGlobalConfigRequest, userId: string): Promise<void> {
     const current = await this.config.get();
     const nextKeyValue = Object.entries(request.values).find(
-      ([key]) => key.trim().toUpperCase() === CONFIG_KEYS.trendingCacheEncryptionKey,
+      ([key]) => normalizeConfigKey(key) === CONFIG_KEYS.trendingCacheEncryptionKey,
     )?.[1];
     if (isString(nextKeyValue) && nextKeyValue !== current.trendingCacheEncryptionKey) {
       const oldKey = decodeKey(current.trendingCacheEncryptionKey);

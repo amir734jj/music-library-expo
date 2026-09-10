@@ -8,7 +8,11 @@ import {
   Station,
   UserAlert,
 } from "#entities";
-import { StationProbeStatusService, StreamMetadataProbeService } from "#services";
+import {
+  GlobalConfigService,
+  StationProbeStatusService,
+  StreamMetadataProbeService,
+} from "#services";
 import { StationProbeWorker } from "#workers";
 import { CaptureModule } from "./capture.module.js";
 
@@ -23,7 +27,12 @@ import { CaptureModule } from "./capture.module.js";
       UserAlert,
     ]),
   ],
-  providers: [StationProbeWorker, StationProbeStatusService, StreamMetadataProbeService],
+  providers: [
+    GlobalConfigService,
+    StationProbeWorker,
+    StationProbeStatusService,
+    StreamMetadataProbeService,
+  ],
   exports: [StationProbeStatusService, StreamMetadataProbeService],
 })
 export class ProbingModule {}
