@@ -53,12 +53,15 @@ export class StationProbeWorker {
         .limit(settings.batchSize)
         .getMany();
 
-      for (let index = 0; index < stations.length; index += settings.concurrency) {
+      let index = 0;
+      while (index < stations.length) {
+        const currentSettings = await this.loadSettings();
+        if (!currentSettings.enabled) break;
+        const probeGroup: Station[] = stations.slice(index, index + currentSettings.concurrency);
         await Promise.all(
-          stations
-            .slice(index, index + settings.concurrency)
-            .map((station) => this.probeStation(station, settings.timeoutMs)),
+          probeGroup.map((station) => this.probeStation(station, currentSettings.timeoutMs)),
         );
+        index += probeGroup.length;
       }
     } finally {
       this.status.completeBatch();
