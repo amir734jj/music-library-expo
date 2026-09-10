@@ -14,7 +14,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { isString } from "lodash-es";
 import { Repository } from "typeorm";
 
@@ -91,6 +91,14 @@ export class AdminService {
     await this.config.save(request, userId);
     const updated = await this.config.get();
     await this.enforceCacheLimit(updated.trendingCacheMaxSizeMegabytes);
+  }
+
+  async rotateCacheEncryptionKey(userId: string): Promise<GlobalConfigModel> {
+    const encryptionKey = randomBytes(32).toString("base64");
+    await this.updateConfig({
+      values: { [CONFIG_KEYS.trendingCacheEncryptionKey]: encryptionKey },
+    }, userId);
+    return this.config.get();
   }
 
   async cacheStatus(): Promise<TrendingCacheStatusSummary> {

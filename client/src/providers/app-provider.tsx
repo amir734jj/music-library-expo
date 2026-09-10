@@ -35,6 +35,8 @@ export interface PlayableItem {
 }
 
 interface AppContextValue {
+  cacheLocation: string | null;
+  clearOfflineTracks(): Promise<void>;
   currentTrack: PlayableItem | null;
   clearError(): void;
   desktopRippingSupported: boolean;
@@ -42,6 +44,8 @@ interface AppContextValue {
   isBuffering: boolean;
   isPlaying: boolean;
   offlineTracks: OfflineTrack[];
+  playAllOfflineTracks(): Promise<void>;
+  playOfflineTrack(track: OfflineTrack): Promise<void>;
   play(item: PlayableItem): Promise<void>;
   refreshOfflineTracks(): Promise<void>;
   removeOfflineTrack(key: string): Promise<void>;
@@ -72,6 +76,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [currentTrack, setCurrentTrack] = useState<PlayableItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const blobUrl = useRef<string | null>(null);
+  const offlineQueue = useRef<OfflineTrack[]>([]);
+  const [cacheLocation, setCacheLocation] = useState<string | null>(null);
   const [offlineTracks, setOfflineTracks] = useState<OfflineTrack[]>([]);
   const [sessionStatus, setSessionStatus] = useState<AppContextValue['sessionStatus']>('restoring');
   const [stationRipSubscriptions, setStationRipSubscriptions] = useState<StationRipSubscription[]>([]);
@@ -110,7 +116,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     });
     refreshOfflineTracks().catch(() => undefined);
-    const unsubscribe = desktopRipper.subscribe(setStationRipSubscriptions);
+    trackStorage.getDisplayLocation().then(setCacheLocation).catch(() => undefined);
+    const unsubscribe = desktopRipper.subscribe((subscriptions) => {
+      setStationRipSubscriptions(subscriptions);
+      refreshOfflineTracks().catch(() => undefined);
+    });
     desktopRipper.initialize().catch((initializeError: unknown) => {
       setError(initializeError instanceof Error ? initializeError.message : 'Desktop ripping could not start.');
     });
@@ -182,6 +192,16 @@ export function AppProvider({ children }: PropsWithChildren) {
     };
   }, [currentTrack?.isLive, currentTrack?.stationId, player]);
 
+  useEffect(() => {
+    if (!playerStatus.didJustFinish) return;
+    const next = offlineQueue.current.shift();
+    if (!next) return;
+    const remaining = [...offlineQueue.current];
+    void playOfflineTrack(next).then(() => {
+      offlineQueue.current = remaining;
+    });
+  }, [playerStatus.didJustFinish]);
+
   async function signIn(input: LoginRequest): Promise<void> {
     setError(null);
     const response = await api.login(input);
@@ -207,6 +227,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   }
 
   async function play(item: PlayableItem): Promise<void> {
+    offlineQueue.current = [];
     setError(null);
     try {
       if (blobUrl.current) {
@@ -279,6 +300,29 @@ export function AppProvider({ children }: PropsWithChildren) {
     await refreshOfflineTracks();
   }
 
+  async function playOfflineTrack(track: OfflineTrack): Promise<void> {
+    await play({
+      description: track.name,
+      isLive: false,
+      source: await trackStorage.resolve(track.key),
+      stationName: track.stationName,
+      title: track.name.replace(/\.[^.]+$/i, ''),
+    });
+  }
+
+  async function playAllOfflineTracks(): Promise<void> {
+    if (offlineTracks.length === 0) return;
+    await playOfflineTrack(offlineTracks[0]);
+    offlineQueue.current = offlineTracks.slice(1);
+  }
+
+  async function clearOfflineTracks(): Promise<void> {
+    offlineQueue.current = [];
+    await stop();
+    await trackStorage.clear();
+    await refreshOfflineTracks();
+  }
+
   async function toggleStationRipping(stationId: string, stationName: string): Promise<void> {
     setError(null);
     try {
@@ -290,6 +334,8 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   return (
     <AppContext.Provider value={{
+      cacheLocation,
+      clearOfflineTracks,
       clearError: () => setError(null),
       currentTrack,
       desktopRippingSupported: desktopRipper.supported,
@@ -298,6 +344,8 @@ export function AppProvider({ children }: PropsWithChildren) {
       isPlaying: playerStatus.playing,
       offlineTracks,
       play,
+      playAllOfflineTracks,
+      playOfflineTrack,
       refreshOfflineTracks,
       removeOfflineTrack,
       saveTrack,

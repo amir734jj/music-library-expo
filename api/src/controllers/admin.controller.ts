@@ -100,6 +100,13 @@ export class AdminController {
     return this.admin.clearCache();
   }
 
+  @Post("cache/rotate-key")
+  rotateCacheEncryptionKey(
+    @Req() request: Request & { user: User },
+  ): Promise<GlobalConfigModel> {
+    return this.admin.rotateCacheEncryptionKey(request.user.id);
+  }
+
   @Post("stations/import")
   importStations(): Promise<DirectoryImportSummary> {
     return this.directoryImport.import();

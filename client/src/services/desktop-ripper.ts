@@ -59,18 +59,19 @@ class DesktopRipper {
   private async synchronize(): Promise<void> {
     if (this.syncing || this.subscriptions.length === 0) return;
     this.syncing = true;
+    let downloaded = false;
     try {
       for (const subscription of this.subscriptions) {
         try {
           await api.requestCapture(subscription.stationId).catch(() => undefined);
           const tracks = await api.stationCachedTracks(subscription.stationId);
           for (const track of tracks) {
-            await invoke<boolean>('save_cached_track', {
+            downloaded = await invoke<boolean>('save_cached_track', {
               cachedTrackId: track.cachedTrackId,
               downloadUrl: api.cachedTrackUrl(track.cachedTrackId),
               fileName: trackFileName(track),
               stationName: subscription.stationName,
-            });
+            }) || downloaded;
           }
         } catch {
           // A later poll retries stations whose API or stream is temporarily unavailable.
@@ -78,6 +79,7 @@ class DesktopRipper {
       }
     } finally {
       this.syncing = false;
+      if (downloaded) this.emit();
     }
   }
 }

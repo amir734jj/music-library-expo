@@ -250,6 +250,10 @@ export class MusicLibraryApi {
     return this.request<void>('/admin/cache', { authenticated: true, method: 'DELETE' });
   }
 
+  rotateCacheEncryptionKey() {
+    return this.request<GlobalConfigModel>('/admin/cache/rotate-key', { authenticated: true, method: 'POST' });
+  }
+
   adminStations() {
     return this.request<StationSummary[]>('/admin/stations', { authenticated: true });
   }

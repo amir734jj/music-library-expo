@@ -46,6 +46,7 @@ export interface OfflineTrack {
 }
 
 export interface TrackStorage {
+  clear(): Promise<void>;
   save(input: SaveTrackInput): Promise<OfflineTrack>;
   list(): Promise<OfflineTrack[]>;
   resolve(key: string): Promise<AudioSource>;

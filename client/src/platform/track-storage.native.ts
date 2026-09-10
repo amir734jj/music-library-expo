@@ -29,6 +29,13 @@ function writeIndex(tracks: OfflineTrack[]): void {
 }
 
 export const trackStorage: TrackStorage = {
+  async clear(): Promise<void> {
+    for (const track of readIndex()) {
+      const file = new File(directory, track.key);
+      if (file.exists) file.delete();
+    }
+    writeIndex([]);
+  },
   async save(input: SaveTrackInput): Promise<OfflineTrack> {
     const key = `${Date.now()}-${safeFilename(input.filename)}`;
     const data = input.data instanceof Blob ? input.data : new Blob([input.data], { type: input.contentType });

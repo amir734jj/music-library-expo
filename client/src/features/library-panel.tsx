@@ -8,7 +8,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Palette, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { trackStorage } from '@/platform/track-storage';
 import { useApp } from '@/providers/app-provider';
 import { api } from '@/services/api';
 
@@ -18,8 +17,11 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
   const router = useRouter();
   const theme = useTheme();
   const {
+    cacheLocation,
+    clearOfflineTracks,
     offlineTracks,
-    play,
+    playAllOfflineTracks,
+    playOfflineTrack,
     removeOfflineTrack,
     sessionStatus,
     stationRipSubscriptions,
@@ -61,7 +63,7 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
   }
 
   if (mode === 'saved') {
-    return <View><SectionHeader count={offlineTracks.length} title="Saved on this device" />{offlineTracks.length === 0 && <EmptyState>Tracks you save from Trending or station history appear here.</EmptyState>}{offlineTracks.map((track) => <Row key={track.key}><View style={styles.rowTop}><View style={styles.copy}><ThemedText numberOfLines={1} style={styles.title}>{track.name.replace(/\.mp3$/i, '')}</ThemedText><ThemedText themeColor="textSecondary">{track.stationName || 'Music Library'}  |  {(track.size / 1_048_576).toFixed(1)} MB</ThemedText></View><View style={styles.actions}><ActionButton label="Play" onPress={() => void trackStorage.resolve(track.key).then((source) => play({ description: track.name, isLive: false, source, stationName: track.stationName, title: track.name.replace(/\.mp3$/i, '') }))} /><ActionButton danger label="Remove" onPress={() => void removeOfflineTrack(track.key)} /></View></View></Row>)}</View>;
+    return <View><SectionHeader count={offlineTracks.length} title="Cached on this device" />{cacheLocation && <ThemedText style={styles.location} themeColor="textSecondary">{cacheLocation}</ThemedText>}<View style={styles.cacheActions}><ActionButton disabled={offlineTracks.length === 0} label="Play all" onPress={() => void playAllOfflineTracks()} /><ActionButton danger disabled={offlineTracks.length === 0} label="Clear cache" onPress={() => void clearOfflineTracks()} /></View>{offlineTracks.length === 0 && <EmptyState>Tracks you cache from Trending, station history, or desktop ripping appear here.</EmptyState>}{offlineTracks.map((track) => <Row key={track.key}><View style={styles.rowTop}><View style={styles.copy}><ThemedText numberOfLines={1} style={styles.title}>{track.name.replace(/\.[^.]+$/i, '')}</ThemedText><ThemedText themeColor="textSecondary">{track.stationName || 'Music Library'}  |  {(track.size / 1_048_576).toFixed(1)} MB</ThemedText></View><View style={styles.actions}><ActionButton label="Play" onPress={() => void playOfflineTrack(track)} /><ActionButton danger label="Remove" onPress={() => void removeOfflineTrack(track.key)} /></View></View></Row>)}</View>;
   }
 
   if (mode === 'ripping') {
@@ -91,9 +93,11 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   addRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.three, padding: Spacing.three },
+  cacheActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginVertical: Spacing.three },
   copy: { flex: 1, minWidth: 180 },
   error: { color: Palette.danger, paddingVertical: Spacing.three },
   input: { borderBottomColor: Palette.line, borderBottomWidth: 1, flex: 1, fontSize: 16, minHeight: 42, minWidth: 180, paddingHorizontal: Spacing.two },
+  location: { marginTop: Spacing.one },
   rowTop: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   signedOut: { alignItems: 'center', gap: Spacing.two },
   title: { fontSize: 15, fontWeight: '800' },

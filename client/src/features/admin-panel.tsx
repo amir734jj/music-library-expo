@@ -133,7 +133,7 @@ export function AdminPanel() {
         <ThemedView type="backgroundElement" style={styles.configGrid}>
           {Object.keys(config).map((key) => <View key={key} style={styles.field}><ThemedText style={styles.fieldLabel}>{configLabel(key)}</ThemedText><TextInput autoCapitalize="none" onChangeText={(value) => setConfigValues((current) => ({ ...current, [key]: value }))} placeholderTextColor={theme.textSecondary} style={[styles.input, { color: theme.text }]} value={configValues[key] ?? ''} /></View>)}
         </ThemedView>
-        <ActionButton label="Save configuration" onPress={() => void saveConfig()} />
+        <View style={styles.actions}><ActionButton label="Save configuration" onPress={() => void saveConfig()} /><ActionButton label="Rotate encryption key" quiet onPress={() => void runMutation(() => api.rotateCacheEncryptionKey(), 'Cache encryption key rotated.')} /></View>
       </>}
     </View>
   );

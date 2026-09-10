@@ -13,7 +13,7 @@ export default function LibraryScreen() {
   const { desktopRippingSupported, offlineTracks, stationRipSubscriptions, user } = useApp();
   const [mode, setMode] = useState<LibraryMode>('saved');
   const options: readonly { label: string; value: LibraryMode }[] = [
-    { label: `Saved (${offlineTracks.length})`, value: 'saved' },
+    { label: `Cached (${offlineTracks.length})`, value: 'saved' },
     ...(desktopRippingSupported ? [{ label: `Ripping (${stationRipSubscriptions.length})`, value: 'ripping' as const }] : []),
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
