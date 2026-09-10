@@ -2,6 +2,7 @@ import type { ConfigService } from "@nestjs/config";
 import type { TypeOrmModuleOptions } from "@nestjs/typeorm";
 
 import type { Environment } from "#config";
+import { databaseMigrations } from "./migrations/index.js";
 
 export function createDatabaseOptions(
   config: ConfigService<Environment, true>,
@@ -13,7 +14,7 @@ export function createDatabaseOptions(
       ? { rejectUnauthorized: true }
       : false,
     autoLoadEntities: true,
-    migrations: [new URL("./migrations/*{.ts,.js}", import.meta.url).pathname],
+    migrations: databaseMigrations,
     migrationsRun: config.get("nodeEnv", { infer: true }) === "production",
     synchronize: false,
     retryAttempts: 10,

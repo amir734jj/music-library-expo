@@ -12,6 +12,7 @@ import {
   UserAlert,
   UserPlaybackActivity,
 } from "../entities/index.js";
+import { databaseMigrations } from "./migrations/index.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -32,6 +33,6 @@ export default new DataSource({
     UserAlert,
     UserPlaybackActivity,
   ],
-  migrations: [new URL("./migrations/*{.ts,.js}", import.meta.url).pathname],
+  migrations: databaseMigrations,
   synchronize: false,
 });
