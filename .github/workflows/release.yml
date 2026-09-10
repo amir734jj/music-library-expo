@@ -49,6 +49,7 @@ jobs:
             NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   desktop:
+    if: ${{ false }} # Temporarily disabled
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -72,6 +73,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    if: ${{ false }} # Temporarily disabled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -83,6 +85,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: false
       - run: npm install --workspaces --include-workspace-root
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,7 +95,10 @@ jobs:
       - run: npm exec --workspace @music-library/client -- expo prebuild --platform android --non-interactive
       - name: Build APK
         working-directory: client/android
-        run: ./gradlew assembleRelease
+        env:
+          NODE_ENV: production
+          GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+        run: ./gradlew assembleRelease --build-cache --parallel --no-daemon
       - name: Collect APK
         run: cp client/android/app/build/outputs/apk/release/app-release.apk music-library.apk
       - uses: actions/upload-artifact@v4
@@ -100,6 +108,7 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: ${{ false }} # Requires the temporarily disabled desktop and Android artifacts
     needs: [container, desktop, android]
     runs-on: ubuntu-latest
     steps:
