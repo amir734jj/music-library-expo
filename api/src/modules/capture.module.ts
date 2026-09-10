@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { CachedTrack, GlobalConfigRow } from "#entities";
 import {
   EncryptedTrackStorageService,
+  StationCaptureLeaseService,
   StreamTrackCaptureService,
   TrackCaptureQueue,
 } from "#services";
@@ -13,10 +14,11 @@ import { TrackCaptureWorker } from "#workers";
   imports: [TypeOrmModule.forFeature([CachedTrack, GlobalConfigRow])],
   providers: [
     EncryptedTrackStorageService,
+    StationCaptureLeaseService,
     StreamTrackCaptureService,
     TrackCaptureQueue,
     TrackCaptureWorker,
   ],
-  exports: [TrackCaptureQueue],
+  exports: [StationCaptureLeaseService, TrackCaptureQueue],
 })
 export class CaptureModule {}

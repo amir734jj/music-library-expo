@@ -37,6 +37,7 @@ import {
   EncryptedTrackStorageService,
   LibraryService,
   LiveStreamTicketService,
+  StationCaptureLeaseService,
 } from "#services";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -46,6 +47,7 @@ export class LibraryController {
   constructor(
     private readonly library: LibraryService,
     private readonly tickets: LiveStreamTicketService,
+    private readonly captureLeases: StationCaptureLeaseService,
     private readonly storage: EncryptedTrackStorageService,
     @InjectRepository(GlobalConfigRow)
     private readonly config: Repository<GlobalConfigRow>,
@@ -117,6 +119,7 @@ export class LibraryController {
     @Param("stationId", ParseUUIDPipe) stationId: string,
   ): Promise<void> {
     if (!(await this.library.enableCapture(stationId))) throw new NotFoundException();
+    this.captureLeases.enable(stationId);
   }
 
   @Get("trending/:cachedTrackId/download")

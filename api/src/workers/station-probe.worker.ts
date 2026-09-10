@@ -13,6 +13,7 @@ import {
 } from "#entities";
 import {
   StationProbeStatusService,
+  StationCaptureLeaseService,
   stationGenrePrioritySql,
   StreamMetadataProbeService,
   TrackCaptureQueue,
@@ -29,6 +30,7 @@ export class StationProbeWorker {
     private readonly dataSource: DataSource,
     private readonly probeService: StreamMetadataProbeService,
     private readonly captureQueue: TrackCaptureQueue,
+    private readonly captureLeases: StationCaptureLeaseService,
     private readonly status: StationProbeStatusService,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
     @InjectRepository(GlobalConfigRow) private readonly config: Repository<GlobalConfigRow>,
@@ -118,6 +120,7 @@ export class StationProbeWorker {
               .execute();
           }
           return subscriptions.some((subscription) => subscription.captureEnabled)
+            || this.captureLeases.isEnabled(current.id)
             ? { observationId: observation.id, streamUrl: current.streamUrl }
             : null;
         }

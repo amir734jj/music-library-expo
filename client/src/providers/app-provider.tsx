@@ -22,6 +22,7 @@ import {
 import { authenticationStorage } from '@/platform/authentication-storage';
 import { trackStorage } from '@/platform/track-storage';
 import { api } from '@/services/api';
+import { desktopRipper, type StationRipSubscription } from '@/services/desktop-ripper';
 
 export interface PlayableItem {
   artist?: string | null;
@@ -36,6 +37,7 @@ export interface PlayableItem {
 interface AppContextValue {
   currentTrack: PlayableItem | null;
   clearError(): void;
+  desktopRippingSupported: boolean;
   error: string | null;
   isBuffering: boolean;
   isPlaying: boolean;
@@ -48,8 +50,10 @@ interface AppContextValue {
   signIn(input: LoginRequest): Promise<void>;
   signOut(): Promise<void>;
   signUp(input: RegisterRequest): Promise<UserResponse>;
+  stationRipSubscriptions: StationRipSubscription[];
   stop(): Promise<void>;
   togglePlayback(): void;
+  toggleStationRipping(stationId: string, stationName: string): Promise<void>;
   user: UserResponse | null;
 }
 
@@ -70,6 +74,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const blobUrl = useRef<string | null>(null);
   const [offlineTracks, setOfflineTracks] = useState<OfflineTrack[]>([]);
   const [sessionStatus, setSessionStatus] = useState<AppContextValue['sessionStatus']>('restoring');
+  const [stationRipSubscriptions, setStationRipSubscriptions] = useState<StationRipSubscription[]>([]);
   const [user, setUser] = useState<UserResponse | null>(null);
 
   async function clearSession(): Promise<void> {
@@ -104,6 +109,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     });
     refreshOfflineTracks().catch(() => undefined);
+    const unsubscribe = desktopRipper.subscribe(setStationRipSubscriptions);
+    desktopRipper.initialize().catch((initializeError: unknown) => {
+      setError(initializeError instanceof Error ? initializeError.message : 'Desktop ripping could not start.');
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -217,10 +227,20 @@ export function AppProvider({ children }: PropsWithChildren) {
     await refreshOfflineTracks();
   }
 
+  async function toggleStationRipping(stationId: string, stationName: string): Promise<void> {
+    setError(null);
+    try {
+      await desktopRipper.toggle(stationId, stationName);
+    } catch (ripError) {
+      setError(ripError instanceof Error ? ripError.message : 'The station ripping setting could not be changed.');
+    }
+  }
+
   return (
     <AppContext.Provider value={{
       clearError: () => setError(null),
       currentTrack,
+      desktopRippingSupported: desktopRipper.supported,
       error,
       isBuffering: playerStatus.isBuffering,
       isPlaying: playerStatus.playing,
@@ -233,8 +253,10 @@ export function AppProvider({ children }: PropsWithChildren) {
       signIn,
       signOut,
       signUp,
+      stationRipSubscriptions,
       stop,
       togglePlayback,
+      toggleStationRipping,
       user,
     }}>
       {children}

@@ -14,11 +14,12 @@ import { useApp } from '@/providers/app-provider';
 type WorkspaceMode = LibraryMode | 'admin';
 
 export default function LibraryScreen() {
-  const { offlineTracks, user } = useApp();
+  const { desktopRippingSupported, offlineTracks, stationRipSubscriptions, user } = useApp();
   const [mode, setMode] = useState<WorkspaceMode>('saved');
   const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
   const options: readonly { label: string; value: WorkspaceMode }[] = [
     { label: `Saved (${offlineTracks.length})`, value: 'saved' },
+    ...(desktopRippingSupported ? [{ label: `Ripping (${stationRipSubscriptions.length})`, value: 'ripping' as const }] : []),
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
     ...(isAdmin ? [{ label: 'Admin', value: 'admin' as const }] : []),
@@ -41,7 +42,7 @@ export default function LibraryScreen() {
             <View style={styles.tabs}><SegmentControl options={options} onChange={setMode} value={mode} /></View>
           </ScrollView>
           <View style={styles.workspace}>
-            {(mode === 'saved' || mode === 'following' || mode === 'alerts') && <LibraryPanel mode={mode} />}
+            {(mode === 'saved' || mode === 'ripping' || mode === 'following' || mode === 'alerts') && <LibraryPanel mode={mode} />}
             {mode === 'admin' && isAdmin && <AdminPanel />}
           </View>
         </ScrollView>

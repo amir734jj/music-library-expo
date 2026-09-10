@@ -12,12 +12,20 @@ import { trackStorage } from '@/platform/track-storage';
 import { useApp } from '@/providers/app-provider';
 import { api } from '@/services/api';
 
-export type LibraryMode = 'alerts' | 'following' | 'saved';
+export type LibraryMode = 'alerts' | 'following' | 'ripping' | 'saved';
 
 export function LibraryPanel({ mode }: { mode: LibraryMode }) {
   const router = useRouter();
   const theme = useTheme();
-  const { offlineTracks, play, removeOfflineTrack, sessionStatus, user } = useApp();
+  const {
+    offlineTracks,
+    play,
+    removeOfflineTrack,
+    sessionStatus,
+    stationRipSubscriptions,
+    toggleStationRipping,
+    user,
+  } = useApp();
   const [alerts, setAlerts] = useState<UserAlertSummary[]>([]);
   const [artistName, setArtistName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +62,10 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
 
   if (mode === 'saved') {
     return <View><SectionHeader count={offlineTracks.length} title="Saved on this device" />{offlineTracks.length === 0 && <EmptyState>Tracks you save from Trending or station history appear here.</EmptyState>}{offlineTracks.map((track) => <Row key={track.key}><View style={styles.rowTop}><View style={styles.copy}><ThemedText numberOfLines={1} style={styles.title}>{track.name.replace(/\.mp3$/i, '')}</ThemedText><ThemedText themeColor="textSecondary">{track.stationName || 'Music Library'}  |  {(track.size / 1_048_576).toFixed(1)} MB</ThemedText></View><View style={styles.actions}><ActionButton label="Play" onPress={() => void trackStorage.resolve(track.key).then((source) => play({ description: track.name, isLive: false, source, stationName: track.stationName, title: track.name.replace(/\.mp3$/i, '') }))} /><ActionButton danger label="Remove" onPress={() => void removeOfflineTrack(track.key)} /></View></View></Row>)}</View>;
+  }
+
+  if (mode === 'ripping') {
+    return <View><SectionHeader count={stationRipSubscriptions.length} title="Stations being ripped" />{stationRipSubscriptions.length === 0 && <EmptyState>Choose Rip beside a station to start collecting complete songs.</EmptyState>}{stationRipSubscriptions.map((subscription) => <Row key={subscription.stationId}><View style={styles.rowTop}><View style={styles.copy}><ThemedText style={styles.title}>{subscription.stationName}</ThemedText><ThemedText themeColor="textSecondary">Saving new tracks to Music/Music Library</ThemedText></View><ActionButton danger label="Stop ripping" onPress={() => void toggleStationRipping(subscription.stationId, subscription.stationName)} /></View></Row>)}</View>;
   }
 
   if (sessionStatus === 'restoring') return <LoadingState />;
