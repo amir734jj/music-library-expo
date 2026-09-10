@@ -119,10 +119,9 @@ export class StationProbeWorker {
               .orIgnore()
               .execute();
           }
-          return subscriptions.some((subscription) => subscription.captureEnabled)
-            || this.captureLeases.isEnabled(current.id)
-            ? { observationId: observation.id, streamUrl: current.streamUrl }
-            : null;
+          const priority = subscriptions.some((subscription) => subscription.captureEnabled)
+            || this.captureLeases.isEnabled(current.id);
+          return { observationId: observation.id, priority, streamUrl: current.streamUrl };
         }
         return null;
       });

@@ -49,6 +49,10 @@ export class TrackCaptureWorker {
         values.get("TRENDING_CACHE_RETENTION_HOURS"),
         24,
       );
+      const maximumBytes = positiveInteger(
+        values.get("TRENDING_CACHE_MAX_SIZE_MEGABYTES"),
+        1_024,
+      ) * 1_024 * 1_024;
       const song = await this.capture.capture(request.streamUrl, timeoutSeconds * 1_000);
       const stored = await this.storage.save(song.data, key);
       const createdAt = new Date();
@@ -60,14 +64,15 @@ export class TrackCaptureWorker {
         normalizedArtist: normalize(song.artist),
         normalizedTitle: normalize(song.title ?? ""),
         filePath: stored.filePath,
-        contentType: "audio/mpeg",
+        contentType: song.contentType,
         plaintextLength: String(stored.plaintextLength),
-        bitrateKbps: null,
-        durationMs: null,
+        bitrateKbps: song.bitrateKbps,
+        durationMs: song.durationMs,
         keyFingerprint: stored.keyFingerprint,
         createdAt,
         expiresAt: new Date(createdAt.getTime() + retentionHours * 60 * 60 * 1_000),
       });
+      await this.enforceCacheLimit(maximumBytes);
     } catch (error) {
       this.logger.error(
         `Capture failed for observation ${request.observationId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -75,6 +80,20 @@ export class TrackCaptureWorker {
     } finally {
       this.queue.complete(request.observationId);
       this.running = false;
+    }
+  }
+
+  private async enforceCacheLimit(maximumBytes: number): Promise<void> {
+    const tracks = await this.tracks.find({ order: { createdAt: "ASC" } });
+    const sizes = await Promise.all(tracks.map((track) => this.storage.size(track.filePath)));
+    let total = sizes.reduce((sum, size) => sum + size, 0);
+    const now = new Date();
+    for (let index = 0; index < tracks.length; index++) {
+      const track = tracks[index]!;
+      if (track.expiresAt > now && total <= maximumBytes) continue;
+      await this.storage.delete(track.filePath);
+      await this.tracks.remove(track);
+      total -= sizes[index] ?? 0;
     }
   }
 }

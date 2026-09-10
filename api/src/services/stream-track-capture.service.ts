@@ -1,7 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import { parseBuffer } from "music-metadata";
 
 export interface CapturedSong {
   artist: string;
+  bitrateKbps: number | null;
+  contentType: string;
+  durationMs: number;
   title: string | null;
   data: Uint8Array;
 }
@@ -57,16 +61,21 @@ export class StreamTrackCaptureService {
         timeoutMs,
       );
 
+      let analyzing = false;
       ripper.on("song", ({ songInfo }) => {
         const artist = songInfo.metadata.artist?.trim();
-        if (!artist || songInfo.data.byteLength === 0) return;
-        finish(() =>
-          resolve({
-            artist,
-            title: songInfo.metadata.title?.trim() || null,
-            data: songInfo.data,
-          }),
-        );
+        if (!artist || songInfo.data.byteLength === 0 || analyzing) return;
+        analyzing = true;
+        void analyzeAudio(songInfo.data).then((audio) => finish(() => resolve({
+          artist,
+          bitrateKbps: audio.bitrateKbps,
+          contentType: audio.contentType,
+          durationMs: audio.durationMs,
+          title: songInfo.metadata.title?.trim() || null,
+          data: songInfo.data,
+        }))).catch((error: unknown) => finish(() => reject(
+          error instanceof Error ? error : new Error(String(error)),
+        )));
       });
       ripper.on("failed", ({ error }) => finish(() => reject(error)));
       void ripper.start().catch((error: unknown) =>
@@ -74,4 +83,27 @@ export class StreamTrackCaptureService {
       );
     });
   }
+}
+
+async function analyzeAudio(data: Uint8Array): Promise<{
+  bitrateKbps: number | null;
+  contentType: string;
+  durationMs: number;
+}> {
+  const { format } = await parseBuffer(data, undefined, { duration: true, skipCovers: true });
+  const durationMs = Math.round((format.duration ?? 0) * 1_000);
+  if (durationMs <= 0) throw new Error("Captured track has no valid duration");
+  const container = format.container?.toLowerCase() ?? "";
+  const contentType = container.includes("flac")
+    ? "audio/flac"
+    : container.includes("ogg")
+      ? "audio/ogg"
+      : container.includes("adts") || container.includes("aac")
+        ? "audio/aac"
+        : "audio/mpeg";
+  return {
+    bitrateKbps: format.bitrate ? Math.round(format.bitrate / 1_000) : null,
+    contentType,
+    durationMs,
+  };
 }

@@ -74,6 +74,7 @@
     "@nestjs/typeorm": "^12.0.0",
     "bcryptjs": "^3.0.3",
     "lodash-es": "^4.17.21",
+    "music-metadata": "^11.15.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.23.0",
