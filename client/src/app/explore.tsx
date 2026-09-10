@@ -12,16 +12,18 @@ import { useApp } from '@/providers/app-provider';
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const { desktopRippingSupported, exitOfflineMode, offlineTracks, sessionStatus, stationRipSubscriptions, user } = useApp();
-  const [mode, setMode] = useState<LibraryMode>('saved');
+  const { desktopRippingSupported, deviceCacheSupported, exitOfflineMode, offlineTracks, sessionStatus, stationRipSubscriptions, user } = useApp();
+  const [mode, setMode] = useState<LibraryMode>(deviceCacheSupported ? 'saved' : 'following');
   const isOffline = sessionStatus === 'offline';
   const onlineOptions: readonly { label: string; value: LibraryMode }[] = [
-    { label: `Cached (${offlineTracks.length})`, value: 'saved' },
+    ...(deviceCacheSupported ? [{ label: `Cached (${offlineTracks.length})`, value: 'saved' as const }] : []),
     ...(desktopRippingSupported ? [{ label: `Ripping (${stationRipSubscriptions.length})`, value: 'ripping' as const }] : []),
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
   ];
-  const options = isOffline ? onlineOptions.slice(0, 1) : onlineOptions;
+  const options = isOffline
+    ? onlineOptions.filter((option) => option.value === 'saved')
+    : onlineOptions;
 
   return (
     <ThemedView style={styles.page}>

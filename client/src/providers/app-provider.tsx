@@ -41,6 +41,7 @@ interface AppContextValue {
   clearOfflineTracks(): Promise<void>;
   currentTrack: PlayableItem | null;
   clearError(): void;
+  deviceCacheSupported: boolean;
   desktopRippingSupported: boolean;
   error: string | null;
   enterOfflineMode(): Promise<void>;
@@ -87,7 +88,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [sessionStatus, setSessionStatus] = useState<AppContextValue['sessionStatus']>('restoring');
   const [stationRipSubscriptions, setStationRipSubscriptions] = useState<StationRipSubscription[]>([]);
   const [user, setUser] = useState<UserResponse | null>(null);
-  const offlineModeSupported = Platform.OS !== 'web' || desktopRipper.supported;
+  const deviceCacheSupported = Platform.OS === 'android' || desktopRipper.supported;
+  const offlineModeSupported = deviceCacheSupported;
   const isPlaybackActive = currentTrack !== null && playerStatus.playing;
 
   async function clearSession(): Promise<void> {
@@ -361,6 +363,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       clearOfflineTracks,
       clearError: () => setError(null),
       currentTrack,
+      deviceCacheSupported,
       desktopRippingSupported: desktopRipper.supported,
       error,
       enterOfflineMode,
