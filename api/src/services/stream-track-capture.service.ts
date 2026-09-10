@@ -94,13 +94,14 @@ async function analyzeAudio(data: Uint8Array): Promise<{
   const durationMs = Math.round((format.duration ?? 0) * 1_000);
   if (durationMs <= 0) throw new Error("Captured track has no valid duration");
   const container = format.container?.toLowerCase() ?? "";
-  const contentType = container.includes("flac")
-    ? "audio/flac"
-    : container.includes("ogg")
-      ? "audio/ogg"
-      : container.includes("adts") || container.includes("aac")
-        ? "audio/aac"
-        : "audio/mpeg";
+  let contentType = "audio/mpeg";
+  if (container.includes("flac")) {
+    contentType = "audio/flac";
+  } else if (container.includes("ogg")) {
+    contentType = "audio/ogg";
+  } else if (container.includes("adts") || container.includes("aac")) {
+    contentType = "audio/aac";
+  }
   return {
     bitrateKbps: format.bitrate ? Math.round(format.bitrate / 1_000) : null,
     contentType,
