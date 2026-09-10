@@ -13,6 +13,7 @@ import {
 } from "#entities";
 import {
   StationProbeStatusService,
+  stationGenrePrioritySql,
   StreamMetadataProbeService,
   TrackCaptureQueue,
 } from "#services";
@@ -44,8 +45,10 @@ export class StationProbeWorker {
 
       const stations = await this.stations
         .createQueryBuilder("station")
+        .addSelect(stationGenrePrioritySql("station"), "genre_priority")
         .where("station.isProbeEnabled = true")
         .orderBy("station.lastProbedAt", "ASC", "NULLS FIRST")
+        .addOrderBy("genre_priority", "ASC")
         .limit(settings.batchSize)
         .getMany();
 

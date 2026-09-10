@@ -22,6 +22,7 @@ import {
   UserAlert,
 } from "#entities";
 import { EncryptedTrackStorageService } from "./encrypted-track-storage.service.js";
+import { stationGenrePrioritySql } from "./station-genre-policy.js";
 
 @Injectable()
 export class LibraryService {
@@ -47,7 +48,12 @@ export class LibraryService {
         { search },
       );
     }
-    const stations = await builder.orderBy("station.name", "ASC").limit(200).getMany();
+    const stations = await builder
+      .addSelect(stationGenrePrioritySql("station"), "genre_priority")
+      .orderBy("genre_priority", "ASC")
+      .addOrderBy("station.name", "ASC")
+      .limit(200)
+      .getMany();
     return stations.map(toStationSummary);
   }
 

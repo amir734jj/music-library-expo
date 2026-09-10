@@ -11,6 +11,7 @@ import { Repository } from "typeorm";
 import { Station } from "#entities";
 
 import { GlobalConfigService } from "./global-config.service.js";
+import { isExcludedStationGenre } from "./station-genre-policy.js";
 
 interface DirectoryStation {
   id?: number;
@@ -21,7 +22,6 @@ interface DirectoryStation {
   StreamUrl?: string | null;
 }
 
-const NON_MUSIC_GENRES = new Set(["public radio", "talk"]);
 const UPSERT_BATCH_SIZE = 1_000;
 
 @Injectable()
@@ -38,6 +38,7 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
   }
 
   private async seedEmptyCatalog(): Promise<void> {
+    await this.removeExcludedStations();
     if ((await this.stations.count()) > 0) return;
     try {
       const summary = await this.import();
@@ -72,7 +73,7 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
 
     for (const [genre, entries] of Object.entries(catalog)) {
       if (!isArray(entries)) continue;
-      if (NON_MUSIC_GENRES.has(genre.trim().toLowerCase())) {
+      if (isExcludedStationGenre(genre)) {
         rejected += entries.length;
         continue;
       }
@@ -99,6 +100,16 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
       });
     }
     return { created, updated, rejected };
+  }
+
+  private async removeExcludedStations(): Promise<void> {
+    await this.stations
+      .createQueryBuilder()
+      .delete()
+      .where("LOWER(genre) = :publicRadio", { publicRadio: "public radio" })
+      .orWhere("LOWER(genre) LIKE :talk", { talk: "%talk%" })
+      .orWhere("LOWER(genre) LIKE :document", { document: "%document%" })
+      .execute();
   }
 }
 

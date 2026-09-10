@@ -11,6 +11,7 @@ export {
 	GlobalConfigService,
 } from "./global-config.service.js";
 export { StationDirectoryImportService } from "./station-directory-import.service.js";
+export { stationGenrePrioritySql } from "./station-genre-policy.js";
 export type { StationProbeRuntimeSnapshot } from "./station-probe-status.service.js";
 export { StationProbeStatusService } from "./station-probe-status.service.js";
 export type { StreamMetadata } from "./stream-metadata-probe.service.js";
