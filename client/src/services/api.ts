@@ -28,7 +28,7 @@ import { Platform } from 'react-native';
 
 type QueryValue = boolean | number | string | null | undefined;
 type Query = Readonly<Record<string, QueryValue>>;
-const PRODUCTION_API_ORIGIN = 'https://music-library.coolify.hesamian.com';
+const PRODUCTION_API_ORIGIN = 'https://music-library2.coolify.hesamian.com';
 
 interface RequestOptions {
   authenticated?: boolean;

@@ -12,7 +12,7 @@
   "app": {
     "security": {
       "capabilities": ["main-window"],
-      "csp": "default-src 'self'; connect-src 'self' https://music-library.coolify.hesamian.com http://127.0.0.1:* http://localhost:*; media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*; img-src 'self' data: blob: https:"
+      "csp": "default-src 'self'; connect-src 'self' https://music-library2.coolify.hesamian.com http://127.0.0.1:* http://localhost:*; media-src 'self' blob: https: http://127.0.0.1:* http://localhost:*; img-src 'self' data: blob: https:"
     },
     "windows": [
       {
