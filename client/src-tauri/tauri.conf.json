@@ -31,6 +31,7 @@
     "active": true,
     "category": "Music",
     "createUpdaterArtifacts": true,
+    "icon": ["../assets/images/icon.png", "icons/icon.ico"],
     "shortDescription": "Radio discovery, playback, and offline library",
     "targets": ["nsis"],
     "windows": {
