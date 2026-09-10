@@ -1,13 +1,13 @@
 import { UserRole } from '@music-library/core';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useApp } from '@/providers/app-provider';
+import { useThemePreference } from '@/providers/theme-provider';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { scheme } = useThemePreference();
+  const colors = Colors[scheme];
   const { sessionStatus, user } = useApp();
   const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
 

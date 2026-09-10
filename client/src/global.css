@@ -21,6 +21,24 @@ body {
   background-size: 28px 28px;
 }
 
+:root[data-theme='dark'] body {
+  background:
+    linear-gradient(rgba(242, 244, 239, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(242, 244, 239, 0.035) 1px, transparent 1px),
+    #171a18;
+  background-size: 28px 28px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) body {
+    background:
+      linear-gradient(rgba(242, 244, 239, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(242, 244, 239, 0.035) 1px, transparent 1px),
+      #171a18;
+    background-size: 28px 28px;
+  }
+}
+
 @media (max-width: 520px) {
   [data-web-nav='brand'] {
     display: none;

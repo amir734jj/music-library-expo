@@ -24,7 +24,8 @@ export function SegmentControl<T extends string>({ options, onChange, value }: {
 }
 
 export function ActionButton({ danger, disabled, label, onPress, quiet }: { danger?: boolean; disabled?: boolean; label: string; onPress(): void; quiet?: boolean }) {
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, quiet && styles.buttonQuiet, danger && styles.buttonDanger, disabled && styles.disabled, pressed && styles.pressed]}><ThemedText style={[styles.buttonText, quiet && styles.buttonQuietText]}>{label}</ThemedText></Pressable>;
+  const theme = useTheme();
+  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.button, quiet && styles.buttonQuiet, quiet && { borderColor: theme.textSecondary }, danger && styles.buttonDanger, disabled && styles.disabled, pressed && styles.pressed]}><ThemedText style={[styles.buttonText, quiet && { color: theme.text }]}>{label}</ThemedText></Pressable>;
 }
 
 export function Row({ children, onPress, selected, style }: PropsWithChildren<{ onPress?: () => void; selected?: boolean; style?: ViewStyle }>) {
@@ -44,7 +45,6 @@ const styles = StyleSheet.create({
   button: { alignItems: 'center', backgroundColor: Palette.accent, borderRadius: 4, justifyContent: 'center', minHeight: 38, paddingHorizontal: 14 },
   buttonDanger: { backgroundColor: Palette.danger },
   buttonQuiet: { backgroundColor: 'transparent', borderColor: Palette.line, borderWidth: 1 },
-  buttonQuietText: { color: Palette.accentStrong },
   buttonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   empty: { paddingVertical: Spacing.five, textAlign: 'center' },
