@@ -30,6 +30,36 @@ interface StreamRipperModule {
 
 const packageName = "@amir734jj/stream-ripper";
 let modulePromise: Promise<StreamRipperModule> | undefined;
+const streamTitlePattern = /(?:^|;)\s*StreamTitle='((?:\\.|[^'])*)'/iu;
+
+export function normalizeStreamMetadata(
+  rawMetadata: string,
+  artist?: string,
+  title?: string,
+): StreamMetadata {
+  let raw = rawMetadata.trim();
+  const streamTitle = streamTitlePattern.exec(raw);
+  if (streamTitle) {
+    raw = streamTitle[1].replace(/\\'/gu, "'").replace(/\\\\/gu, "\\").trim();
+  }
+
+  const normalizedArtist = artist?.trim() || null;
+  const normalizedTitle = title?.trim() || null;
+  if (containsIcyField(normalizedArtist)
+    || containsIcyField(normalizedTitle)
+    || !containsLetterOrDigit(normalizedArtist, normalizedTitle)) {
+    return { artist: null, raw, title: null };
+  }
+  return { artist: normalizedArtist, raw, title: normalizedTitle };
+}
+
+function containsIcyField(value: string | null): boolean {
+  return value !== null && /Stream(?:Title|Url|Artwork)=/iu.test(value);
+}
+
+function containsLetterOrDigit(...values: (string | null)[]): boolean {
+  return values.some((value) => value !== null && /[\p{L}\p{N}]/u.test(value));
+}
 
 @Injectable()
 export class StreamMetadataProbeService {
@@ -64,11 +94,7 @@ export class StreamMetadataProbeService {
 
       ripper.on("metadata", ({ metadata }) => {
         finish(() =>
-          resolve({
-            artist: metadata.artist?.trim() || null,
-            title: metadata.title?.trim() || null,
-            raw: metadata.raw.trim(),
-          }),
+          resolve(normalizeStreamMetadata(metadata.raw, metadata.artist, metadata.title)),
         );
       });
       ripper.on("failed", ({ error }) => finish(() => reject(error)));

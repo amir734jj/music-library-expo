@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { parseBuffer } from "music-metadata";
 
+import { normalizeStreamMetadata } from "./stream-metadata-probe.service.js";
+
 export interface CapturedSong {
   artist: string;
   bitrateKbps: number | null;
@@ -63,7 +65,12 @@ export class StreamTrackCaptureService {
 
       let analyzing = false;
       ripper.on("song", ({ songInfo }) => {
-        const artist = songInfo.metadata.artist?.trim();
+        const metadata = normalizeStreamMetadata(
+          songInfo.metadata.raw,
+          songInfo.metadata.artist,
+          songInfo.metadata.title,
+        );
+        const artist = metadata.artist;
         if (!artist || songInfo.data.byteLength === 0 || analyzing) return;
         analyzing = true;
         void analyzeAudio(songInfo.data).then((audio) => finish(() => resolve({
@@ -71,7 +78,7 @@ export class StreamTrackCaptureService {
           bitrateKbps: audio.bitrateKbps,
           contentType: audio.contentType,
           durationMs: audio.durationMs,
-          title: songInfo.metadata.title?.trim() || null,
+          title: metadata.title,
           data: songInfo.data,
         }))).catch((error: unknown) => finish(() => reject(
           error instanceof Error ? error : new Error(String(error)),

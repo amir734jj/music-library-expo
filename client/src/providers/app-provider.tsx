@@ -164,7 +164,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       try {
         const metadata = await api.stationNowPlaying(stationId);
         if (!active) return;
-        const title = metadata.title || metadata.rawMetadata || metadata.stationName;
+        const title = metadata.title || metadata.stationName;
         const description = `${[metadata.artist, title].filter(Boolean).join(' - ')} on ${metadata.stationName}`;
         setCurrentTrack((playing) => {
           if (!playing?.isLive || playing.stationId !== stationId) return playing;
