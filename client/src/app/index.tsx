@@ -21,6 +21,18 @@ function trackName(artist: string | null, title: string | null, fallback: string
   return [artist, title].filter(Boolean).join(' - ') || fallback;
 }
 
+function playedTime(observedAt: string, now: number): string {
+  const elapsedSeconds = Math.max(0, Math.floor((now - new Date(observedAt).getTime()) / 1_000));
+  if (elapsedSeconds < 15) return 'Played just now';
+  if (elapsedSeconds < 60) return `Played ${elapsedSeconds} seconds ago`;
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) return `Played ${elapsedMinutes} ${elapsedMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `Played ${elapsedHours} ${elapsedHours === 1 ? 'hour' : 'hours'} ago`;
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `Played ${elapsedDays} ${elapsedDays === 1 ? 'day' : 'days'} ago`;
+}
+
 export default function DiscoverScreen() {
   const {
     currentTrack,
@@ -38,6 +50,7 @@ export default function DiscoverScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<DiscoverMode>('air');
+  const [now, setNow] = useState(Date.now());
   const [nowPlaying, setNowPlaying] = useState<NowPlayingSummary[]>([]);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -87,6 +100,11 @@ export default function DiscoverScreen() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
   async function selectStation(station: StationSummary): Promise<void> {
     setSelectedStation(station);
     setCachedTracks(await api.stationCachedTracks(station.id).catch(() => []));
@@ -125,7 +143,7 @@ export default function DiscoverScreen() {
           {loading ? <LoadingState /> : (
             <View style={styles.columns}>
               <View style={styles.primaryColumn}>
-                {mode === 'air' && <><SectionHeader count={nowPlaying.length} title="On air now" />{nowPlaying.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? emptyCatalogMessage : 'No live metadata matched this search.'}</EmptyState>}{nowPlaying.map((item) => <Row key={item.stationId}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText numberOfLines={1} style={styles.itemTitle}>{trackName(item.artist, item.title, 'Metadata pending')}</ThemedText><ThemedText themeColor="textSecondary">{item.stationName}</ThemedText></View><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(item.stationId, item.stationName, item.title || item.stationName, item.artist)} />{ripAction(item.stationId, item.stationName)}</View></View><ThemedText style={styles.meta} themeColor="textSecondary">Confidence {Math.round(item.confidence * 100)}%  |  {new Date(item.observedAt).toLocaleTimeString()}</ThemedText></Row>)}</>}
+                {mode === 'air' && <><SectionHeader count={nowPlaying.length} title="On air now" />{nowPlaying.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? emptyCatalogMessage : 'No live metadata matched this search.'}</EmptyState>}{nowPlaying.map((item) => <Row key={item.stationId}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText numberOfLines={1} style={styles.itemTitle}>{trackName(item.artist, item.title, 'Metadata pending')}</ThemedText><ThemedText themeColor="textSecondary">{item.stationName}</ThemedText></View><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(item.stationId, item.stationName, item.title || item.stationName, item.artist)} />{ripAction(item.stationId, item.stationName)}</View></View><ThemedText style={styles.meta} themeColor="textSecondary">{playedTime(item.observedAt, now)}</ThemedText></Row>)}</>}
                 {mode === 'stations' && <><SectionHeader count={stations.length} title="Station directory" />{stations.length === 0 && <EmptyState>{deferredQuery ? 'No stations matched this search.' : emptyCatalogMessage}</EmptyState>}{stations.map((station) => <Row key={station.id} onPress={() => void selectStation(station)} selected={selectedStation?.id === station.id}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.genre || 'Uncategorized'}</ThemedText></View><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(station.id, station.name, station.name)} />{ripAction(station.id, station.name)}</View></View></Row>)}</>}
                 {mode === 'trending' && <><SectionHeader count={trending.length} title="Trending across stations" />{trending.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? 'Trending will appear after stations are imported and probed.' : 'No trending tracks matched this search.'}</EmptyState>}{trending.map((item, index) => <Row key={`${item.artist}-${item.title}-${index}`}><View style={styles.rowTop}><View style={styles.rank}><ThemedText style={styles.rankText}>{index + 1}</ThemedText></View><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{trackName(item.artist, item.title, item.artist)}</ThemedText><ThemedText themeColor="textSecondary">{item.observationCount} plays on {item.stationCount} stations</ThemedText></View></View><View style={styles.actions}><ActionButton label="Play station" quiet onPress={() => void playStation(item.lastStationId, item.lastStationName, item.title || item.artist, item.artist)} />{item.cachedTrackId && <ActionButton label="Play cached" onPress={() => void play({ artist: item.artist, description: trackName(item.artist, item.title, item.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(item.cachedTrackId!) }, stationName: item.lastStationName, title: item.title || item.artist })} />}{item.cachedTrackId && <ActionButton label="Save" quiet onPress={() => void saveTrack(item.cachedTrackId!, `${trackName(item.artist, item.title, item.artist)}.mp3`, item.lastStationName)} />}</View></Row>)}</>}
               </View>
