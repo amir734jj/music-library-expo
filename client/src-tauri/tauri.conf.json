@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "category": "Music",
+    "createUpdaterArtifacts": true,
     "shortDescription": "Radio discovery, playback, and offline library",
     "targets": ["nsis"],
     "windows": {
@@ -40,6 +41,17 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper",
         "silent": true
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/amir734jj/music-library-expo/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwNDc3MjQ0QTgxNjQ4RDcKUldUWFNCYW9SSEpIa091RS8xWSs0QXNGd0tpVTJ6NUsyQlNTWWMraVo0Ykszbk5RanJVOXkvcGMK",
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

@@ -65,11 +65,22 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build --workspace @music-library/core
+      - name: Set desktop release version
+        shell: pwsh
+        run: |
+          $path = "client/src-tauri/tauri.conf.json"
+          $config = Get-Content $path -Raw | ConvertFrom-Json
+          $config.version = "0.1.$env:GITHUB_RUN_NUMBER"
+          $config | ConvertTo-Json -Depth 100 | Set-Content $path
       - run: npm run tauri --workspace @music-library/client -- build --bundles nsis
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       - uses: actions/upload-artifact@v4
         with:
           name: desktop
-          path: client/src-tauri/target/release/bundle/nsis/*.exe
+          path: |
+            client/src-tauri/target/release/bundle/nsis/*.exe
+            client/src-tauri/target/release/bundle/nsis/*.exe.sig
           if-no-files-found: error
 
   android:
@@ -132,6 +143,19 @@ jobs:
           mkdir -p release/container
           cp Dockerfile release/container/Dockerfile
           printf '%s\n%s\n' "$IMAGE" "ghcr.io/${GITHUB_REPOSITORY,,}:latest" > release/container/images.txt
+          installer="$(find release/desktop -maxdepth 1 -type f -name '*.exe' | head -n 1)"
+          test -n "$installer" && test -f "${installer}.sig"
+          mv "$installer" release/desktop/music-library-desktop-update.exe
+          mv "${installer}.sig" release/desktop/music-library-desktop-update.exe.sig
+          signature="$(cat release/desktop/music-library-desktop-update.exe.sig)"
+          jq -n \
+            --arg version "0.1.${GITHUB_RUN_NUMBER}" \
+            --arg notes "Music Library build ${GITHUB_RUN_NUMBER}" \
+            --arg pub_date "$(date --utc +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg signature "$signature" \
+            --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${version}/music-library-desktop-update.exe" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $signature, url: $url}}}' \
+            > release/latest.json
           (cd release && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
           (cd release && zip -r "../music-library-${version}.zip" .)
       - name: Publish one GitHub release asset
@@ -144,7 +168,36 @@ jobs:
           else
             version="build-${GITHUB_RUN_NUMBER}"
           fi
-          gh release create "$version" "music-library-${version}.zip" \
+          gh release create "$version" \
+            "music-library-${version}.zip" \
+            "release/latest.json" \
+            "release/desktop/music-library-desktop-update.exe" \
+            "release/desktop/music-library-desktop-update.exe.sig" \
             --target "$GITHUB_SHA" \
             --title "Music Library ${version}" \
             --notes "Release bundle with Windows desktop installer, Android APK, immutable and latest GHCR image references, Dockerfile, and checksums."
+      - name: Keep only the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          current="build-${GITHUB_RUN_NUMBER}"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name' |
+            while read -r tag; do
+              if [[ "$tag" != "$current" ]]; then
+                gh release delete "$tag" --cleanup-tag --yes
+              fi
+            done
+      - name: Keep only the latest container package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          package_name="${GITHUB_REPOSITORY#*/}"
+          versions="$(gh api --paginate --slurp "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package_name}/versions?per_page=100" | jq 'add')"
+          latest_id="$(jq -r '[.[] | select(any(.metadata.container.tags[]?; . == "latest"))][0].id // empty' <<< "$versions")"
+          test -n "$latest_id"
+          jq -r --argjson latest_id "$latest_id" '.[] | select(.id != $latest_id) | .id' <<< "$versions" |
+            while read -r version_id; do
+              gh api --method DELETE "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package_name}/versions/${version_id}"
+            done

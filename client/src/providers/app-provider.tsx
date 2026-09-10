@@ -24,6 +24,7 @@ import { authenticationStorage } from '@/platform/authentication-storage';
 import { trackStorage } from '@/platform/track-storage';
 import { api } from '@/services/api';
 import { desktopRipper, type StationRipSubscription } from '@/services/desktop-ripper';
+import { desktopUpdater } from '@/services/desktop-updater';
 
 export interface PlayableItem {
   artist?: string | null;
@@ -128,6 +129,9 @@ export function AppProvider({ children }: PropsWithChildren) {
     });
     desktopRipper.initialize().catch((initializeError: unknown) => {
       setError(initializeError instanceof Error ? initializeError.message : 'Desktop ripping could not start.');
+    });
+    desktopUpdater.initialize().catch((initializeError: unknown) => {
+      setError(initializeError instanceof Error ? initializeError.message : 'Desktop update check failed.');
     });
     return unsubscribe;
   }, []);
