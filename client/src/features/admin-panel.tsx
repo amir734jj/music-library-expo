@@ -10,7 +10,6 @@ import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/services/api';
 
 type AdminMode = 'config' | 'probes' | 'users';
-const modes = [{ label: 'Probes', value: 'probes' }, { label: 'Users', value: 'users' }, { label: 'Configuration', value: 'config' }] as const;
 
 function configLabel(key: string): string {
   return key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase());
@@ -29,6 +28,12 @@ export function AdminPanel() {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [users, setUsers] = useState<UserResponse[]>([]);
+  const pendingUserCount = users.filter((account) => !account.isActive).length;
+  const modes: readonly { label: string; value: AdminMode }[] = [
+    { label: 'Probes', value: 'probes' },
+    { label: pendingUserCount ? `Users (${pendingUserCount} pending)` : 'Users', value: 'users' },
+    { label: 'Configuration', value: 'config' },
+  ];
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -52,24 +57,42 @@ export function AdminPanel() {
   useEffect(() => { void load(); }, [page]);
 
   async function updateUser(user: UserResponse, changes: Partial<{ displayName: string | null; isActive: boolean; role: typeof UserRole.Admin | typeof UserRole.User | null }>): Promise<void> {
-    await api.updateAdminUser(user.id, {
-      displayName: changes.displayName === undefined ? user.displayName : changes.displayName,
-      isActive: changes.isActive ?? user.isActive,
-      role: changes.role === undefined ? user.roles[0] ?? null : changes.role,
-    });
-    await load();
+    await runMutation(
+      () => api.updateAdminUser(user.id, {
+        displayName: changes.displayName === undefined ? user.displayName : changes.displayName,
+        isActive: changes.isActive ?? user.isActive,
+        role: changes.role === undefined ? user.roles[0] ?? null : changes.role,
+      }),
+      `${user.displayName || user.email} updated.`,
+    );
+  }
+
+  async function runMutation(action: () => Promise<unknown>, successMessage: string): Promise<void> {
+    setError(null);
+    setResult(null);
+    try {
+      await action();
+      await load();
+      setResult(successMessage);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'The action could not be completed.');
+    }
   }
 
   async function saveConfig(): Promise<void> {
-    await api.updateAdminConfig({ values: configValues });
-    setResult('Configuration saved.');
-    await load();
+    await runMutation(() => api.updateAdminConfig({ values: configValues }), 'Configuration saved.');
   }
 
   async function runImport(): Promise<void> {
-    const summary = await api.importStations();
-    setResult(`Import complete: ${summary.created} created, ${summary.updated} updated, ${summary.rejected} rejected.`);
-    await load();
+    setError(null);
+    setResult(null);
+    try {
+      const summary = await api.importStations();
+      await load();
+      setResult(`Import complete: ${summary.created} created, ${summary.updated} updated, ${summary.rejected} rejected.`);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Station import failed.');
+    }
   }
 
   if (loading && !probes) return <LoadingState />;
@@ -89,19 +112,20 @@ export function AdminPanel() {
         </View>
         <ThemedView type="backgroundElement" style={styles.toolbar}>
           <View style={styles.toolbarCopy}><ThemedText style={styles.toolbarTitle}>Directory and probe controls</ThemedText><ThemedText themeColor="textSecondary">Last batch {probes?.lastBatchCompletedAt ? new Date(probes.lastBatchCompletedAt).toLocaleString() : 'has not completed'}</ThemedText></View>
-          <View style={styles.actions}><ActionButton label="Import directory" onPress={() => void runImport()} /><ActionButton label="Enable all" quiet onPress={() => void api.updateAllStationProbes({ isProbeEnabled: true }).then(load)} /><ActionButton label="Disable all" quiet onPress={() => void api.updateAllStationProbes({ isProbeEnabled: false }).then(load)} /><ActionButton danger label="Clear cache" onPress={() => void api.clearCache().then(load)} /></View>
+          <View style={styles.actions}><ActionButton label="Import directory" onPress={() => void runImport()} /><ActionButton label="Enable all" quiet onPress={() => void runMutation(() => api.updateAllStationProbes({ isProbeEnabled: true }), 'All station probes enabled.')} /><ActionButton label="Disable all" quiet onPress={() => void runMutation(() => api.updateAllStationProbes({ isProbeEnabled: false }), 'All station probes disabled.')} /><ActionButton danger label="Clear cache" onPress={() => void runMutation(() => api.clearCache(), 'Track cache cleared.')} /></View>
         </ThemedView>
         <SearchField onChangeText={setQuery} placeholder="Filter probe status" value={query} />
         <ActionButton label="Apply filter" quiet onPress={() => { setPage(1); void load(); }} />
         <SectionHeader count={probes?.matchingStationCount} title="Station probes" />
         {probes?.stations.length === 0 && <EmptyState>No stations match this filter.</EmptyState>}
-        {probes?.stations.map((station) => <Row key={station.id}><View style={styles.userRow}><View style={styles.copy}><ThemedText style={styles.rowTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.isProbing ? 'Probing now' : station.lastMetadataAt ? `Metadata ${new Date(station.lastMetadataAt).toLocaleString()}` : 'No metadata yet'}  |  {station.consecutiveProbeFailures} failures</ThemedText></View><View style={styles.switchGroup}><ThemedText>{station.isProbeEnabled ? 'Enabled' : 'Disabled'}</ThemedText><Switch onValueChange={(isProbeEnabled) => void api.updateStationProbe(station.id, { isProbeEnabled }).then(load)} thumbColor="#FFFFFF" trackColor={{ false: '#A9AEA9', true: Palette.accent }} value={station.isProbeEnabled} /></View></View></Row>)}
+        {probes?.stations.map((station) => <Row key={station.id}><View style={styles.userRow}><View style={styles.copy}><ThemedText style={styles.rowTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.isProbing ? 'Probing now' : station.lastMetadataAt ? `Metadata ${new Date(station.lastMetadataAt).toLocaleString()}` : 'No metadata yet'}  |  {station.consecutiveProbeFailures} failures</ThemedText></View><View style={styles.switchGroup}><ThemedText>{station.isProbeEnabled ? 'Enabled' : 'Disabled'}</ThemedText><Switch onValueChange={(isProbeEnabled) => void runMutation(() => api.updateStationProbe(station.id, { isProbeEnabled }), `${station.name} probe ${isProbeEnabled ? 'enabled' : 'disabled'}.`)} thumbColor="#FFFFFF" trackColor={{ false: '#A9AEA9', true: Palette.accent }} value={station.isProbeEnabled} /></View></View></Row>)}
         <View style={styles.pagination}><ActionButton disabled={page <= 1} label="Previous" quiet onPress={() => setPage((value) => value - 1)} /><ThemedText>Page {probes?.page ?? page}</ThemedText><ActionButton disabled={!probes || probes.page * probes.pageSize >= probes.matchingStationCount} label="Next" quiet onPress={() => setPage((value) => value + 1)} /></View>
       </>}
 
       {mode === 'users' && <>
         <SectionHeader count={users.length} title="Registered users" />
-        {users.map((account) => <Row key={account.id}><View style={styles.userRow}><View style={styles.copy}><ThemedText style={styles.rowTitle}>{account.displayName || account.email}</ThemedText><ThemedText themeColor="textSecondary">{account.email}  |  {account.roles.join(', ') || 'No role'}</ThemedText></View><View style={styles.switchGroup}><ThemedText>{account.isActive ? 'Active' : 'Inactive'}</ThemedText><Switch onValueChange={(isActive) => void updateUser(account, { isActive })} thumbColor="#FFFFFF" trackColor={{ false: '#A9AEA9', true: Palette.accent }} value={account.isActive} /></View></View><View style={styles.actions}><ActionButton label="Make admin" quiet disabled={account.roles.includes(UserRole.Admin)} onPress={() => void updateUser(account, { role: UserRole.Admin })} /><ActionButton label="Make user" quiet disabled={account.roles.includes(UserRole.User) && !account.roles.includes(UserRole.Admin)} onPress={() => void updateUser(account, { role: UserRole.User })} /><ActionButton danger label="Delete" onPress={() => void api.deleteAdminUser(account.id).then(load)} /></View></Row>)}
+        {pendingUserCount > 0 && <ThemedText style={styles.pending}>{pendingUserCount} account{pendingUserCount === 1 ? '' : 's'} waiting for approval.</ThemedText>}
+        {users.map((account) => <Row key={account.id}><View style={styles.userRow}><View style={styles.copy}><ThemedText style={styles.rowTitle}>{account.displayName || account.email}</ThemedText><ThemedText themeColor="textSecondary">{account.email}  |  {account.roles.join(', ') || 'No role'}</ThemedText></View><View style={styles.switchGroup}><ThemedText>{account.isActive ? 'Active' : 'Pending'}</ThemedText><Switch onValueChange={(isActive) => void updateUser(account, { isActive })} thumbColor="#FFFFFF" trackColor={{ false: '#A9AEA9', true: Palette.accent }} value={account.isActive} /></View></View><View style={styles.actions}>{!account.isActive && <ActionButton label="Enable account" onPress={() => void updateUser(account, { isActive: true })} />}<ActionButton label="Make admin" quiet disabled={account.roles.includes(UserRole.Admin)} onPress={() => void updateUser(account, { role: UserRole.Admin })} /><ActionButton label="Make user" quiet disabled={account.roles.includes(UserRole.User) && !account.roles.includes(UserRole.Admin)} onPress={() => void updateUser(account, { role: UserRole.User })} /><ActionButton danger label="Delete" onPress={() => void runMutation(() => api.deleteAdminUser(account.id), `${account.displayName || account.email} deleted.`)} /></View></Row>)}
       </>}
 
       {mode === 'config' && config && <>
@@ -133,6 +157,7 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   metricValue: { fontFamily: 'Georgia', fontSize: 24, fontWeight: '700' },
   pagination: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.three },
+  pending: { backgroundColor: '#FFF4D6', color: Palette.ink, padding: Spacing.three },
   result: { backgroundColor: '#DDE9E2', color: Palette.accentStrong, padding: Spacing.three },
   rowTitle: { fontSize: 15, fontWeight: '800' },
   switchGroup: { alignItems: 'center', flexDirection: 'row', gap: Spacing.two },

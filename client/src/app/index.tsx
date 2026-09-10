@@ -25,6 +25,7 @@ export default function DiscoverScreen() {
   const { play, saveTrack, user } = useApp();
   const [activity, setActivity] = useState<UserPlaybackActivitySummary[]>([]);
   const [cachedTracks, setCachedTracks] = useState<StationCachedTrackSummary[]>([]);
+  const [catalogRefreshAttempts, setCatalogRefreshAttempts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<DiscoverMode>('air');
@@ -36,8 +37,9 @@ export default function DiscoverScreen() {
   const [stations, setStations] = useState<StationSummary[]>([]);
   const [trending, setTrending] = useState<TrendingSummary[]>([]);
 
-  async function load(showSpinner = false): Promise<void> {
-    showSpinner ? setRefreshing(true) : setLoading(true);
+  async function load(showSpinner = false, quietly = false): Promise<void> {
+    if (showSpinner) setRefreshing(true);
+    else if (!quietly) setLoading(true);
     setError(null);
     try {
       const [stationRows, onAirRows, trendingRows, activityRows] = await Promise.all([
@@ -60,6 +62,15 @@ export default function DiscoverScreen() {
     return () => clearTimeout(timeout);
   }, [deferredQuery]);
 
+  useEffect(() => {
+    if (loading || error || deferredQuery || stations.length > 0 || catalogRefreshAttempts >= 6) return;
+    const timeout = setTimeout(() => {
+      setCatalogRefreshAttempts((attempts) => attempts + 1);
+      void load(false, true);
+    }, 5_000);
+    return () => clearTimeout(timeout);
+  }, [catalogRefreshAttempts, deferredQuery, error, loading, stations.length]);
+
   async function selectStation(station: StationSummary): Promise<void> {
     setSelectedStation(station);
     setCachedTracks(await api.stationCachedTracks(station.id).catch(() => []));
@@ -78,6 +89,10 @@ export default function DiscoverScreen() {
     });
   }
 
+  const emptyCatalogMessage = catalogRefreshAttempts < 6
+    ? 'The station catalog is still initializing.'
+    : 'The station catalog is unavailable. An administrator can retry the directory import.';
+
   return (
     <ThemedView style={styles.page}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -89,9 +104,9 @@ export default function DiscoverScreen() {
           {loading ? <LoadingState /> : (
             <View style={styles.columns}>
               <View style={styles.primaryColumn}>
-                {mode === 'air' && <><SectionHeader count={nowPlaying.length} title="On air now" />{nowPlaying.length === 0 && <EmptyState>No live metadata matched this search.</EmptyState>}{nowPlaying.map((item) => <Row key={item.stationId}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText numberOfLines={1} style={styles.itemTitle}>{trackName(item.artist, item.title, 'Metadata pending')}</ThemedText><ThemedText themeColor="textSecondary">{item.stationName}</ThemedText></View><ActionButton label="Play live" onPress={() => void playStation(item.stationId, item.stationName, item.title || item.stationName, item.artist)} /></View><ThemedText style={styles.meta} themeColor="textSecondary">Confidence {Math.round(item.confidence * 100)}%  |  {new Date(item.observedAt).toLocaleTimeString()}</ThemedText></Row>)}</>}
-                {mode === 'stations' && <><SectionHeader count={stations.length} title="Station directory" />{stations.length === 0 && <EmptyState>No stations matched this search.</EmptyState>}{stations.map((station) => <Row key={station.id} onPress={() => void selectStation(station)} selected={selectedStation?.id === station.id}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.genre || 'Uncategorized'}</ThemedText></View><ActionButton label="Play" onPress={() => void playStation(station.id, station.name, station.name)} /></View></Row>)}</>}
-                {mode === 'trending' && <><SectionHeader count={trending.length} title="Trending across stations" />{trending.length === 0 && <EmptyState>No trending tracks matched this search.</EmptyState>}{trending.map((item, index) => <Row key={`${item.artist}-${item.title}-${index}`}><View style={styles.rowTop}><View style={styles.rank}><ThemedText style={styles.rankText}>{index + 1}</ThemedText></View><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{trackName(item.artist, item.title, item.artist)}</ThemedText><ThemedText themeColor="textSecondary">{item.observationCount} plays on {item.stationCount} stations</ThemedText></View></View><View style={styles.actions}><ActionButton label="Play station" quiet onPress={() => void playStation(item.lastStationId, item.lastStationName, item.title || item.artist, item.artist)} />{item.cachedTrackId && <ActionButton label="Play cached" onPress={() => void play({ artist: item.artist, description: trackName(item.artist, item.title, item.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(item.cachedTrackId!) }, stationName: item.lastStationName, title: item.title || item.artist })} />}{item.cachedTrackId && <ActionButton label="Save" quiet onPress={() => void saveTrack(item.cachedTrackId!, `${trackName(item.artist, item.title, item.artist)}.mp3`, item.lastStationName)} />}</View></Row>)}</>}
+                {mode === 'air' && <><SectionHeader count={nowPlaying.length} title="On air now" />{nowPlaying.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? emptyCatalogMessage : 'No live metadata matched this search.'}</EmptyState>}{nowPlaying.map((item) => <Row key={item.stationId}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText numberOfLines={1} style={styles.itemTitle}>{trackName(item.artist, item.title, 'Metadata pending')}</ThemedText><ThemedText themeColor="textSecondary">{item.stationName}</ThemedText></View><ActionButton label="Play live" onPress={() => void playStation(item.stationId, item.stationName, item.title || item.stationName, item.artist)} /></View><ThemedText style={styles.meta} themeColor="textSecondary">Confidence {Math.round(item.confidence * 100)}%  |  {new Date(item.observedAt).toLocaleTimeString()}</ThemedText></Row>)}</>}
+                {mode === 'stations' && <><SectionHeader count={stations.length} title="Station directory" />{stations.length === 0 && <EmptyState>{deferredQuery ? 'No stations matched this search.' : emptyCatalogMessage}</EmptyState>}{stations.map((station) => <Row key={station.id} onPress={() => void selectStation(station)} selected={selectedStation?.id === station.id}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.genre || 'Uncategorized'}</ThemedText></View><ActionButton label="Play" onPress={() => void playStation(station.id, station.name, station.name)} /></View></Row>)}</>}
+                {mode === 'trending' && <><SectionHeader count={trending.length} title="Trending across stations" />{trending.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? 'Trending will appear after stations are imported and probed.' : 'No trending tracks matched this search.'}</EmptyState>}{trending.map((item, index) => <Row key={`${item.artist}-${item.title}-${index}`}><View style={styles.rowTop}><View style={styles.rank}><ThemedText style={styles.rankText}>{index + 1}</ThemedText></View><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{trackName(item.artist, item.title, item.artist)}</ThemedText><ThemedText themeColor="textSecondary">{item.observationCount} plays on {item.stationCount} stations</ThemedText></View></View><View style={styles.actions}><ActionButton label="Play station" quiet onPress={() => void playStation(item.lastStationId, item.lastStationName, item.title || item.artist, item.artist)} />{item.cachedTrackId && <ActionButton label="Play cached" onPress={() => void play({ artist: item.artist, description: trackName(item.artist, item.title, item.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(item.cachedTrackId!) }, stationName: item.lastStationName, title: item.title || item.artist })} />}{item.cachedTrackId && <ActionButton label="Save" quiet onPress={() => void saveTrack(item.cachedTrackId!, `${trackName(item.artist, item.title, item.artist)}.mp3`, item.lastStationName)} />}</View></Row>)}</>}
               </View>
               <View style={styles.sideColumn}>
                 <SectionHeader title={selectedStation ? selectedStation.name : 'Station detail'} />

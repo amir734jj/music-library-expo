@@ -20,6 +20,7 @@ export function AuthPanel() {
   const [mode, setMode] = useState<AuthMode>('login');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const canSubmit = Boolean(email.trim()) && password.length > 0 && (
     mode === 'login' || (password.length >= 8 && password === passwordConfirmation)
@@ -41,7 +42,8 @@ export function AuthPanel() {
           </View>
         </View>
         <View style={styles.roles}>{user.roles.map((role) => <ThemedText key={role} style={styles.role}>{role}</ThemedText>)}</View>
-        <ActionButton label="Sign out" onPress={() => void signOut()} quiet />
+        <ThemedText themeColor="textSecondary">Your account is active and synchronized with this device.</ThemedText>
+        <ActionButton danger label="Sign out of Music Library" onPress={() => void signOut()} />
       </ThemedView>
     );
   }
@@ -49,12 +51,19 @@ export function AuthPanel() {
   async function submit(): Promise<void> {
     setSubmitting(true);
     setError(null);
+    setStatus(null);
     try {
       if (mode === 'login') {
         await signIn({ email: email.trim(), password });
       } else {
         if (password !== passwordConfirmation) throw new Error('Passwords do not match.');
-        await signUp({ displayName: displayName.trim() || null, email: email.trim(), password, passwordConfirmation });
+        const registeredUser = await signUp({ displayName: displayName.trim() || null, email: email.trim(), password, passwordConfirmation });
+        setMode('login');
+        setPassword('');
+        setPasswordConfirmation('');
+        setStatus(registeredUser.isActive
+          ? 'Account created. Sign in to continue.'
+          : 'Account created. An administrator must enable it before you can sign in.');
       }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Authentication failed.');
@@ -65,12 +74,14 @@ export function AuthPanel() {
 
   return (
     <ThemedView type="backgroundElement" style={styles.panel}>
-      <SegmentControl options={modes} onChange={setMode} value={mode} />
+      <SegmentControl options={modes} onChange={(nextMode) => { setMode(nextMode); setError(null); setStatus(null); }} value={mode} />
+      {mode === 'register' && <ThemedText themeColor="textSecondary">The first account becomes the administrator. Later accounts require administrator approval.</ThemedText>}
       {mode === 'register' && <TextInput autoCapitalize="words" onChangeText={setDisplayName} placeholder="Display name (optional)" placeholderTextColor={theme.textSecondary} style={inputStyle} value={displayName} />}
       <TextInput autoCapitalize="none" autoComplete="email" inputMode="email" onChangeText={setEmail} placeholder="Email" placeholderTextColor={theme.textSecondary} style={inputStyle} value={email} />
       <TextInput autoCapitalize="none" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} onChangeText={setPassword} placeholder="Password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={password} />
       {mode === 'register' && <TextInput autoCapitalize="none" autoComplete="new-password" onChangeText={setPasswordConfirmation} placeholder="Confirm password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={passwordConfirmation} />}
       {mode === 'register' && <ThemedText style={styles.requirement} themeColor="textSecondary">Use at least 8 characters.</ThemedText>}
+      {status && <ThemedText style={styles.status}>{status}</ThemedText>}
       {error && <ThemedText style={styles.error}>{error}</ThemedText>}
       <ActionButton disabled={submitting || !canSubmit} label={submitting ? 'Working...' : mode === 'login' ? 'Sign in' : 'Create account'} onPress={() => void submit()} />
     </ThemedView>
@@ -89,4 +100,5 @@ const styles = StyleSheet.create({
   requirement: { fontSize: 12 },
   role: { backgroundColor: '#DDE9E2', borderRadius: 3, color: Palette.accentStrong, fontSize: 12, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4 },
   roles: { flexDirection: 'row', gap: Spacing.two },
+  status: { backgroundColor: '#DDE9E2', color: Palette.accentStrong, fontSize: 13, padding: Spacing.three },
 });

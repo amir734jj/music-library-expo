@@ -8,6 +8,7 @@ import {
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -51,7 +52,7 @@ export class AuthService {
               email,
               passwordHash: await hash(request.password, 12),
               displayName: normalizeDisplayName(request.displayName),
-              isActive: true,
+              isActive: isFirstUser,
               role: isFirstUser ? UserRole.Admin : UserRole.User,
               lastLoginAt: null,
             }),
@@ -77,8 +78,11 @@ export class AuthService {
       .where("user.email = :email", { email: normalizeEmail(request.email) })
       .getOne();
 
-    if (!user || !user.isActive || !(await compare(request.password, user.passwordHash))) {
+    if (!user || !(await compare(request.password, user.passwordHash))) {
       throw new UnauthorizedException("Invalid email or password");
+    }
+    if (!user.isActive) {
+      throw new ForbiddenException("Your account is awaiting administrator approval");
     }
 
     user.lastLoginAt = new Date();

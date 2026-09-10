@@ -1,5 +1,9 @@
 import type { DirectoryImportSummary } from "@music-library/core";
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { isArray } from "lodash-es";
 import { Repository } from "typeorm";
@@ -16,13 +20,34 @@ interface DirectoryStation {
 }
 
 const NON_MUSIC_GENRES = new Set(["public radio", "talk"]);
+const UPSERT_BATCH_SIZE = 1_000;
 
 @Injectable()
-export class StationDirectoryImportService {
+export class StationDirectoryImportService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(StationDirectoryImportService.name);
+
   constructor(
     private readonly config: GlobalConfigService,
     @InjectRepository(Station) private readonly stations: Repository<Station>,
   ) {}
+
+  onApplicationBootstrap(): void {
+    void this.seedEmptyCatalog();
+  }
+
+  private async seedEmptyCatalog(): Promise<void> {
+    if ((await this.stations.count()) > 0) return;
+    try {
+      const summary = await this.import();
+      this.logger.log(
+        `Initial station import complete: ${summary.created} created, ${summary.updated} updated, ${summary.rejected} rejected`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Initial station import failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   async import(): Promise<DirectoryImportSummary> {
     const { directoryArtifactUrl } = await this.config.get();
@@ -36,6 +61,10 @@ export class StationDirectoryImportService {
     const existing = new Map(
       (await this.stations.find()).map((station) => [station.directoryId, station]),
     );
+    const rows = new Map<
+      string,
+      Pick<Station, "directoryId" | "genre" | "name" | "streamUrl">
+    >();
     let created = 0;
     let updated = 0;
     let rejected = 0;
@@ -56,23 +85,21 @@ export class StationDirectoryImportService {
         }
         const station = existing.get(directoryId);
         if (station) {
-          station.name = name;
-          station.genre = genre;
-          station.streamUrl = streamUrl;
-          await this.stations.save(station);
+          rows.set(directoryId, { directoryId, genre, name, streamUrl });
           updated++;
         } else {
-          const createdStation = await this.stations.save({
-            directoryId,
-            name,
-            genre,
-            streamUrl,
-            isProbeEnabled: true,
-          });
-          existing.set(directoryId, createdStation);
+          rows.set(directoryId, { directoryId, genre, name, streamUrl });
+          existing.set(directoryId, this.stations.create({ directoryId }));
           created++;
         }
       }
+    }
+    const stationRows = [...rows.values()];
+    for (let index = 0; index < stationRows.length; index += UPSERT_BATCH_SIZE) {
+      await this.stations.upsert(stationRows.slice(index, index + UPSERT_BATCH_SIZE), {
+        conflictPaths: ["directoryId"],
+        skipUpdateIfNoValuesChanged: true,
+      });
     }
     return { created, updated, rejected };
   }

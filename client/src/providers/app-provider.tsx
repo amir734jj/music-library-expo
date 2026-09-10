@@ -47,7 +47,7 @@ interface AppContextValue {
   sessionStatus: 'anonymous' | 'authenticated' | 'restoring';
   signIn(input: LoginRequest): Promise<void>;
   signOut(): Promise<void>;
-  signUp(input: RegisterRequest): Promise<void>;
+  signUp(input: RegisterRequest): Promise<UserResponse>;
   stop(): Promise<void>;
   togglePlayback(): void;
   user: UserResponse | null;
@@ -133,10 +133,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     setSessionStatus('authenticated');
   }
 
-  async function signUp(input: RegisterRequest): Promise<void> {
+  async function signUp(input: RegisterRequest): Promise<UserResponse> {
     setError(null);
-    await api.register(input);
-    await signIn({ email: input.email, password: input.password });
+    const response = await api.register(input);
+    return response.user;
   }
 
   async function signOut(): Promise<void> {
