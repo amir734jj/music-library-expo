@@ -14,8 +14,8 @@ export class CachedTrack {
   @Column({ name: "file_path", type: "text" }) filePath!: string;
   @Column({ name: "content_type", type: "text", default: "audio/mpeg" }) contentType!: string;
   @Column({ name: "plaintext_length", type: "bigint" }) plaintextLength!: string;
-  @Column({ name: "bitrate_kbps", nullable: true }) bitrateKbps!: number | null;
-  @Column({ name: "duration_ms", nullable: true }) durationMs!: number | null;
+  @Column({ name: "bitrate_kbps", type: "integer", nullable: true }) bitrateKbps!: number | null;
+  @Column({ name: "duration_ms", type: "integer", nullable: true }) durationMs!: number | null;
   @Column({ name: "key_fingerprint", type: "varchar", length: 64 }) keyFingerprint!: string;
   @Column({ name: "created_at", type: "timestamptz" }) createdAt!: Date;
   @Column({ name: "expires_at", type: "timestamptz" }) expiresAt!: Date;
