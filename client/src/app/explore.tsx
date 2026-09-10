@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScreenHeader, SegmentControl } from '@/components/music-ui';
+import { ActionButton, ScreenHeader, SegmentControl } from '@/components/music-ui';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Palette, Spacing } from '@/constants/theme';
@@ -10,23 +11,26 @@ import { LibraryPanel, type LibraryMode } from '@/features/library-panel';
 import { useApp } from '@/providers/app-provider';
 
 export default function LibraryScreen() {
-  const { desktopRippingSupported, offlineTracks, stationRipSubscriptions, user } = useApp();
+  const router = useRouter();
+  const { desktopRippingSupported, exitOfflineMode, offlineTracks, sessionStatus, stationRipSubscriptions, user } = useApp();
   const [mode, setMode] = useState<LibraryMode>('saved');
-  const options: readonly { label: string; value: LibraryMode }[] = [
+  const isOffline = sessionStatus === 'offline';
+  const onlineOptions: readonly { label: string; value: LibraryMode }[] = [
     { label: `Cached (${offlineTracks.length})`, value: 'saved' },
     ...(desktopRippingSupported ? [{ label: `Ripping (${stationRipSubscriptions.length})`, value: 'ripping' as const }] : []),
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
   ];
+  const options = isOffline ? onlineOptions.slice(0, 1) : onlineOptions;
 
   return (
     <ThemedView style={styles.page}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.content}>
           <ScreenHeader
-            eyebrow={user ? `Signed in as ${user.displayName || user.email}` : 'Your collection'}
-            title="Library"
-            trailing={<View style={styles.status}><View style={[styles.statusDot, { backgroundColor: user ? Palette.accent : Palette.gold }]} /><ThemedText style={styles.statusText}>{user ? 'Synced' : 'Local only'}</ThemedText></View>}
+            eyebrow={isOffline ? 'Available without a connection' : user ? `Signed in as ${user.displayName || user.email}` : 'Your collection'}
+            title={isOffline ? 'Cached locally' : 'Library'}
+            trailing={isOffline ? <ActionButton label="Return to sign in" quiet onPress={() => { exitOfflineMode(); router.replace('/account'); }} /> : <View style={styles.status}><View style={[styles.statusDot, { backgroundColor: user ? Palette.accent : Palette.gold }]} /><ThemedText style={styles.statusText}>{user ? 'Synced' : 'Local only'}</ThemedText></View>}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
             <View style={styles.tabs}><SegmentControl options={options} onChange={setMode} value={mode} /></View>

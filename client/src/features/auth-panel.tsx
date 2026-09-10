@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ActionButton, SegmentControl } from '@/components/music-ui';
@@ -12,8 +13,9 @@ type AuthMode = 'login' | 'register';
 const modes = [{ label: 'Sign in', value: 'login' }, { label: 'Create account', value: 'register' }] as const;
 
 export function AuthPanel() {
+  const router = useRouter();
   const theme = useTheme();
-  const { sessionStatus, signIn, signOut, signUp, user } = useApp();
+  const { enterOfflineMode, exitOfflineMode, offlineModeSupported, sessionStatus, signIn, signOut, signUp, user } = useApp();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,10 @@ export function AuthPanel() {
 
   if (sessionStatus === 'restoring') {
     return <ThemedText themeColor="textSecondary">Restoring your session...</ThemedText>;
+  }
+
+  if (sessionStatus === 'offline') {
+    return <ThemedView type="backgroundElement" style={styles.panel}><ThemedText style={styles.name}>Offline mode</ThemedText><ThemedText themeColor="textSecondary">Only recordings cached on this device are available.</ThemedText><ActionButton label="Return to sign in" onPress={() => { exitOfflineMode(); router.replace('/account'); }} /></ThemedView>;
   }
 
   if (user) {
@@ -84,6 +90,7 @@ export function AuthPanel() {
       {status && <ThemedText style={styles.status}>{status}</ThemedText>}
       {error && <ThemedText style={styles.error}>{error}</ThemedText>}
       <ActionButton disabled={submitting || !canSubmit} label={submitting ? 'Working...' : mode === 'login' ? 'Sign in' : 'Create account'} onPress={() => void submit()} />
+      {offlineModeSupported && <ActionButton label="Continue offline" quiet onPress={() => void enterOfflineMode().then(() => router.replace('/explore'))} />}
     </ThemedView>
   );
 }

@@ -40,6 +40,7 @@ export default function DiscoverScreen() {
     isPlaying,
     play,
     saveTrack,
+    sessionStatus,
     stationRipSubscriptions,
     toggleStationRipping,
     user,
@@ -60,6 +61,7 @@ export default function DiscoverScreen() {
   const [trending, setTrending] = useState<TrendingSummary[]>([]);
 
   async function load(showSpinner = false, quietly = false): Promise<void> {
+    if (sessionStatus === 'offline') return;
     if (showSpinner) setRefreshing(true);
     else if (!quietly) setLoading(true);
     setError(null);
@@ -80,20 +82,22 @@ export default function DiscoverScreen() {
   }
 
   useEffect(() => {
+    if (sessionStatus === 'offline') return;
     const timeout = setTimeout(() => void load(), 180);
     return () => clearTimeout(timeout);
-  }, [deferredQuery]);
+  }, [deferredQuery, sessionStatus]);
 
   useEffect(() => {
-    if (loading || error || deferredQuery || stations.length > 0 || catalogRefreshAttempts >= 6) return;
+    if (sessionStatus === 'offline' || loading || error || deferredQuery || stations.length > 0 || catalogRefreshAttempts >= 6) return;
     const timeout = setTimeout(() => {
       setCatalogRefreshAttempts((attempts) => attempts + 1);
       void load(false, true);
     }, 5_000);
     return () => clearTimeout(timeout);
-  }, [catalogRefreshAttempts, deferredQuery, error, loading, stations.length]);
+  }, [catalogRefreshAttempts, deferredQuery, error, loading, sessionStatus, stations.length]);
 
   useEffect(() => {
+    if (sessionStatus === 'offline') return;
     const refreshLiveData = () => {
       api.nowPlaying(deferredQuery).then(setNowPlaying).catch(() => undefined);
       api.trending(deferredQuery).then(setTrending).catch(() => undefined);
@@ -103,12 +107,12 @@ export default function DiscoverScreen() {
       refreshLiveData();
     }, 15_000);
     return () => clearInterval(interval);
-  }, [deferredQuery]);
+  }, [deferredQuery, sessionStatus]);
 
   useEffect(() => {
-    if (mode !== 'trending') return;
+    if (sessionStatus === 'offline' || mode !== 'trending') return;
     api.trending(deferredQuery).then(setTrending).catch(() => undefined);
-  }, [deferredQuery, mode]);
+  }, [deferredQuery, mode, sessionStatus]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15_000);

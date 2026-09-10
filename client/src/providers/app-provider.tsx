@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 
 import { authenticationStorage } from '@/platform/authentication-storage';
 import { trackStorage } from '@/platform/track-storage';
@@ -41,16 +42,19 @@ interface AppContextValue {
   clearError(): void;
   desktopRippingSupported: boolean;
   error: string | null;
+  enterOfflineMode(): Promise<void>;
+  exitOfflineMode(): void;
   isBuffering: boolean;
   isPlaying: boolean;
   offlineTracks: OfflineTrack[];
+  offlineModeSupported: boolean;
   playAllOfflineTracks(): Promise<void>;
   playOfflineTrack(track: OfflineTrack): Promise<void>;
   play(item: PlayableItem): Promise<void>;
   refreshOfflineTracks(): Promise<void>;
   removeOfflineTrack(key: string): Promise<void>;
   saveTrack(cachedTrackId: string, filename: string, stationName?: string): Promise<void>;
-  sessionStatus: 'anonymous' | 'authenticated' | 'restoring';
+  sessionStatus: 'anonymous' | 'authenticated' | 'offline' | 'restoring';
   signIn(input: LoginRequest): Promise<void>;
   signOut(): Promise<void>;
   signUp(input: RegisterRequest): Promise<UserResponse>;
@@ -82,6 +86,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [sessionStatus, setSessionStatus] = useState<AppContextValue['sessionStatus']>('restoring');
   const [stationRipSubscriptions, setStationRipSubscriptions] = useState<StationRipSubscription[]>([]);
   const [user, setUser] = useState<UserResponse | null>(null);
+  const offlineModeSupported = Platform.OS !== 'web' || desktopRipper.supported;
   const isPlaybackActive = currentTrack !== null && playerStatus.playing;
 
   async function clearSession(): Promise<void> {
@@ -204,6 +209,7 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   async function signIn(input: LoginRequest): Promise<void> {
     setError(null);
+    desktopRipper.setOfflineMode(false);
     const response = await api.login(input);
     api.setAccessToken(response.accessToken);
     await authenticationStorage.save({
@@ -224,6 +230,19 @@ export function AppProvider({ children }: PropsWithChildren) {
   async function signOut(): Promise<void> {
     await api.clearPlaybackActivity().catch(() => undefined);
     await clearSession();
+  }
+
+  async function enterOfflineMode(): Promise<void> {
+    api.setAccessToken(null);
+    desktopRipper.setOfflineMode(true);
+    setUser(null);
+    setSessionStatus('offline');
+    await refreshOfflineTracks();
+  }
+
+  function exitOfflineMode(): void {
+    desktopRipper.setOfflineMode(false);
+    setSessionStatus('anonymous');
   }
 
   async function play(item: PlayableItem): Promise<void> {
@@ -340,9 +359,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       currentTrack,
       desktopRippingSupported: desktopRipper.supported,
       error,
+      enterOfflineMode,
+      exitOfflineMode,
       isBuffering: playerStatus.isBuffering,
       isPlaying: playerStatus.playing,
       offlineTracks,
+      offlineModeSupported,
       play,
       playAllOfflineTracks,
       playOfflineTrack,

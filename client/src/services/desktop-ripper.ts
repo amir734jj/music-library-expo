@@ -21,6 +21,7 @@ class DesktopRipper {
     && ('__TAURI_INTERNALS__' in window || window.location.hostname === 'tauri.localhost');
   private subscriptions: StationRipSubscription[] = [];
   private listeners = new Set<Listener>();
+  private offline = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private syncing = false;
 
@@ -36,6 +37,11 @@ class DesktopRipper {
     this.listeners.add(listener);
     listener([...this.subscriptions]);
     return () => this.listeners.delete(listener);
+  }
+
+  setOfflineMode(offline: boolean): void {
+    this.offline = offline;
+    if (!offline) void this.synchronize();
   }
 
   async toggle(stationId: string, stationName: string): Promise<void> {
@@ -57,7 +63,7 @@ class DesktopRipper {
   }
 
   private async synchronize(): Promise<void> {
-    if (this.syncing || this.subscriptions.length === 0) return;
+    if (this.offline || this.syncing || this.subscriptions.length === 0) return;
     this.syncing = true;
     let downloaded = false;
     try {

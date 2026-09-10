@@ -24,9 +24,9 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
+          {sessionStatus !== 'offline' && <TabTrigger name="home" href="/" asChild>
             <TabButton>Discover</TabButton>
-          </TabTrigger>
+          </TabTrigger>}
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Library</TabButton>
           </TabTrigger>
@@ -34,7 +34,7 @@ export default function AppTabs() {
             <TabButton>Admin</TabButton>
           </TabTrigger>}
           <TabTrigger name="account" href="/account" asChild>
-            <TabButton>{sessionStatus === 'anonymous' ? 'Sign in' : 'Account'}</TabButton>
+            <TabButton>{sessionStatus === 'anonymous' || sessionStatus === 'offline' ? 'Sign in' : 'Account'}</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
