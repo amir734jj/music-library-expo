@@ -4,8 +4,8 @@ FROM node:24-alpine AS build
 WORKDIR /workspace
 
 COPY . .
-RUN --mount=type=secret,id=npm_token \
-  NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token)" npm install --workspaces --include-workspace-root
+RUN --mount=type=secret,id=NODE_AUTH_TOKEN \
+  NODE_AUTH_TOKEN="$(cat /run/secrets/NODE_AUTH_TOKEN)" npm install --workspaces --include-workspace-root
 
 RUN npm run build --workspace @music-library/core \
     && npm run export:web --workspace @music-library/client \
