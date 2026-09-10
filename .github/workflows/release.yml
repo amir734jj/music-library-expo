@@ -108,22 +108,11 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: ${{ false }} # Requires the temporarily disabled desktop and Android artifacts
-    needs: [container, desktop, android]
+    needs: [container]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Download desktop artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: desktop
-          path: release-input/desktop
-      - name: Download Android artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: android
-          path: release-input/android
-      - name: Assemble single release file
+      - name: Assemble container release file
         shell: bash
         env:
           IMAGE: ${{ needs.container.outputs.image }}
@@ -133,13 +122,11 @@ jobs:
           else
             version="build-${GITHUB_RUN_NUMBER}"
           fi
-          mkdir -p release/desktop release/android release/container
-          cp release-input/desktop/*.exe release/desktop/
-          cp release-input/android/*.apk release/android/
+          mkdir -p release/container
           cp Dockerfile release/container/Dockerfile
-          printf '%s\n' "$IMAGE" > release/container/image.txt
+          printf '%s\n%s\n' "$IMAGE" "ghcr.io/${GITHUB_REPOSITORY,,}:latest" > release/container/images.txt
           cp FEATURE_PARITY.md release/FEATURE_PARITY.md
-          (cd release && sha256sum desktop/* android/* container/Dockerfile > SHA256SUMS)
+          (cd release && sha256sum container/Dockerfile container/images.txt > SHA256SUMS)
           (cd release && zip -r "../music-library-${version}.zip" .)
       - name: Publish one GitHub release asset
         env:
@@ -154,4 +141,4 @@ jobs:
           gh release create "$version" "music-library-${version}.zip" \
             --target "$GITHUB_SHA" \
             --title "Music Library ${version}" \
-            --notes "Combined Windows desktop installer, Android APK, Dockerfile, GHCR image reference, checksums, and feature parity report."
+            --notes "Container release with immutable and latest GHCR image references, Dockerfile, checksums, and feature parity report."
