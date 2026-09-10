@@ -20,3 +20,14 @@ body {
     #f4f5f1;
   background-size: 28px 28px;
 }
+
+@media (max-width: 520px) {
+  [data-web-nav='brand'] {
+    display: none;
+  }
+
+  [data-web-nav='inner'] {
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}

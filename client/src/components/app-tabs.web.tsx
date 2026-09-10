@@ -12,8 +12,11 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useApp } from '@/providers/app-provider';
 
 export default function AppTabs() {
+  const { sessionStatus } = useApp();
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -24,6 +27,9 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Library</TabButton>
+          </TabTrigger>
+          <TabTrigger name="account" href="/account" asChild>
+            <TabButton>{sessionStatus === 'anonymous' ? 'Sign in' : 'Account'}</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -48,8 +54,8 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
+      <ThemedView dataSet={{ webNav: 'inner' }} type="backgroundElement" style={styles.innerContainer}>
+        <ThemedText dataSet={{ webNav: 'brand' }} type="smallBold" style={styles.brandText}>
           Music Library
         </ThemedText>
 
