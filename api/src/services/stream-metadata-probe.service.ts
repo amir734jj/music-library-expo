@@ -39,8 +39,9 @@ export function normalizeStreamMetadata(
 ): StreamMetadata {
   let raw = rawMetadata.trim();
   const streamTitle = streamTitlePattern.exec(raw);
-  if (streamTitle) {
-    raw = streamTitle[1].replace(/\\'/gu, "'").replace(/\\\\/gu, "\\").trim();
+  const capturedTitle = streamTitle?.[1];
+  if (capturedTitle !== undefined) {
+    raw = capturedTitle.replace(/\\'/gu, "'").replace(/\\\\/gu, "\\").trim();
   }
 
   const normalizedArtist = artist?.trim() || null;
