@@ -49,7 +49,7 @@ jobs:
           secrets: |
             NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
-  desktop:
+  desktop-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -81,6 +81,42 @@ jobs:
           path: |
             client/src-tauri/target/release/bundle/nsis/*.exe
             client/src-tauri/target/release/bundle/nsis/*.exe.sig
+          if-no-files-found: error
+
+  desktop-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: npm install --workspaces --include-workspace-root
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm run build --workspace @music-library/core
+      - name: Set desktop release version
+        shell: bash
+        run: |
+          jq --arg version "0.1.${GITHUB_RUN_NUMBER}" '.version = $version' client/src-tauri/tauri.conf.json > tauri.conf.json
+          mv tauri.conf.json client/src-tauri/tauri.conf.json
+      - run: npm run tauri --workspace @music-library/client -- build --bundles appimage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux
+          path: |
+            client/src-tauri/target/release/bundle/appimage/*.AppImage
+            client/src-tauri/target/release/bundle/appimage/*.AppImage.sig
           if-no-files-found: error
 
   android:
@@ -119,14 +155,18 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [container, desktop, android]
+    needs: [container, desktop-windows, desktop-linux, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v5
         with:
           name: desktop
-          path: release/desktop
+          path: release/desktop/windows
+      - uses: actions/download-artifact@v5
+        with:
+          name: desktop-linux
+          path: release/desktop/linux
       - uses: actions/download-artifact@v5
         with:
           name: android
@@ -136,53 +176,62 @@ jobs:
         env:
           IMAGE: ${{ needs.container.outputs.image }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            version="$GITHUB_REF_NAME"
-          else
-            version="build-${GITHUB_RUN_NUMBER}"
-          fi
           mkdir -p release/container
           cp Dockerfile release/container/Dockerfile
           printf '%s\n%s\n' "$IMAGE" "ghcr.io/${GITHUB_REPOSITORY,,}:latest" > release/container/images.txt
-          installer="$(find release/desktop -maxdepth 1 -type f -name '*.exe' | head -n 1)"
-          test -n "$installer" && test -f "${installer}.sig"
-          mv "$installer" release/desktop/music-library-desktop-update.exe
-          mv "${installer}.sig" release/desktop/music-library-desktop-update.exe.sig
-          signature="$(cat release/desktop/music-library-desktop-update.exe.sig)"
+          windows_installer="$(find release/desktop/windows -maxdepth 1 -type f -name '*.exe' | head -n 1)"
+          linux_installer="$(find release/desktop/linux -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
+          test -n "$windows_installer" && test -f "${windows_installer}.sig"
+          test -n "$linux_installer" && test -f "${linux_installer}.sig"
+          mv "$windows_installer" release/desktop/music-library-windows.exe
+          mv "${windows_installer}.sig" release/desktop/music-library-windows.exe.sig
+          mv "$linux_installer" release/desktop/music-library-linux-x86_64.AppImage
+          mv "${linux_installer}.sig" release/desktop/music-library-linux-x86_64.AppImage.sig
+          windows_signature="$(cat release/desktop/music-library-windows.exe.sig)"
+          linux_signature="$(cat release/desktop/music-library-linux-x86_64.AppImage.sig)"
           jq -n \
             --arg version "0.1.${GITHUB_RUN_NUMBER}" \
             --arg notes "Music Library build ${GITHUB_RUN_NUMBER}" \
             --arg pub_date "$(date --utc +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg signature "$signature" \
-            --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${version}/music-library-desktop-update.exe" \
-            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $signature, url: $url}}}' \
+            --arg windows_signature "$windows_signature" \
+            --arg windows_url "https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/music-library-windows.exe" \
+            --arg linux_signature "$linux_signature" \
+            --arg linux_url "https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/music-library-linux-x86_64.AppImage" \
+            '{version: $version, notes: $notes, pub_date: $pub_date, platforms: {"windows-x86_64": {signature: $windows_signature, url: $windows_url}, "linux-x86_64": {signature: $linux_signature, url: $linux_url}}}' \
             > release/latest.json
           (cd release && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
-          (cd release && zip -r "../music-library-${version}.zip" .)
-      - name: Publish one GitHub release asset
+          (cd release && zip -r ../music-library-latest.zip .)
+      - name: Publish stable latest release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            version="$GITHUB_REF_NAME"
+          assets=(
+            music-library-latest.zip
+            release/latest.json
+            release/desktop/music-library-windows.exe
+            release/desktop/music-library-windows.exe.sig
+            release/desktop/music-library-linux-x86_64.AppImage
+            release/desktop/music-library-linux-x86_64.AppImage.sig
+          )
+          notes="Release bundle with Windows installer, Ubuntu AppImage, Android APK, GHCR image references, Dockerfile, and checksums."
+          if gh release view latest >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/latest" -f sha="$GITHUB_SHA" -F force=true
+            gh release upload latest "${assets[@]}" --clobber
+            gh release edit latest --title "Music Library Latest" --notes "$notes" --latest
           else
-            version="build-${GITHUB_RUN_NUMBER}"
+            gh release create latest "${assets[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "Music Library Latest" \
+              --notes "$notes" \
+              --latest
           fi
-          gh release create "$version" \
-            "music-library-${version}.zip" \
-            "release/latest.json" \
-            "release/desktop/music-library-desktop-update.exe" \
-            "release/desktop/music-library-desktop-update.exe.sig" \
-            --target "$GITHUB_SHA" \
-            --title "Music Library ${version}" \
-            --notes "Release bundle with Windows desktop installer, Android APK, immutable and latest GHCR image references, Dockerfile, and checksums."
       - name: Keep only the latest release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          current="build-${GITHUB_RUN_NUMBER}"
+          current="latest"
           gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name' |
             while read -r tag; do
               if [[ "$tag" != "$current" ]]; then
