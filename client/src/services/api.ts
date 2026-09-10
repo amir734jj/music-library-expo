@@ -26,6 +26,8 @@ import Constants from 'expo-constants';
 import { isArray } from 'lodash-es';
 import { Platform } from 'react-native';
 
+import { desktopLogger } from '@/services/desktop-logger';
+
 type QueryValue = boolean | number | string | null | undefined;
 type Query = Readonly<Record<string, QueryValue>>;
 const PRODUCTION_API_ORIGIN = 'https://music-library2.coolify.hesamian.com';
@@ -125,15 +127,26 @@ export class MusicLibraryApi {
       headers.Authorization = `Bearer ${this.accessToken}`;
     }
 
-    const response = await fetch(url, {
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      headers,
-      keepalive: options.keepalive,
-      method: options.method ?? 'GET',
-    });
+    const method = options.method ?? 'GET';
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        headers,
+        keepalive: options.keepalive,
+        method,
+      });
+    } catch (requestError) {
+      const detail = requestError instanceof Error
+        ? `${requestError.name}: ${requestError.message}`
+        : String(requestError);
+      await desktopLogger.error(`API ${method} ${url.origin}${url.pathname} failed: ${detail}`);
+      throw new Error(`Could not connect to the Music Library API at ${url.origin}.`);
+    }
 
     if (!response.ok) {
       const body = await response.json().catch(() => undefined) as NestErrorBody | undefined;
+      await desktopLogger.error(`API ${method} ${url.pathname} returned HTTP ${response.status}`);
       if (response.status === 401 && options.authenticated) {
         await this.unauthorizedHandler?.();
       }

@@ -1,11 +1,49 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
+    fs::OpenOptions,
+    io::Write,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
 
 const SUBSCRIPTIONS_FILE: &str = "station-subscriptions.json";
+const LOG_FILE: &str = "music-library.log";
+const MAX_LOG_SIZE: u64 = 5 * 1024 * 1024;
+
+fn desktop_log_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let directory = app.path().app_log_dir().map_err(|error| error.to_string())?;
+    std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    Ok(directory.join(LOG_FILE))
+}
+
+#[tauri::command]
+fn desktop_log_location(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(desktop_log_path(&app)?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn write_desktop_log(app: tauri::AppHandle, level: String, message: String) -> Result<(), String> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_millis();
+    let level = if level == "ERROR" { "ERROR" } else { "INFO" };
+    let message = message.replace(['\r', '\n'], " ");
+    let path = desktop_log_path(&app)?;
+    if path.metadata().map(|metadata| metadata.len()).unwrap_or(0) >= MAX_LOG_SIZE {
+        let previous = path.with_extension("log.previous");
+        let _ = std::fs::remove_file(&previous);
+        std::fs::rename(&path, previous).map_err(|error| error.to_string())?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|error| error.to_string())?;
+    writeln!(file, "{timestamp} [{level}] {message}").map_err(|error| error.to_string())
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -246,13 +284,15 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             clear_offline_tracks,
             delete_offline_track,
+            desktop_log_location,
             list_offline_tracks,
             list_station_subscriptions,
             offline_track_location,
             read_offline_track,
             save_offline_track,
             save_station_subscriptions,
-            save_cached_track
+            save_cached_track,
+            write_desktop_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running Music Library");

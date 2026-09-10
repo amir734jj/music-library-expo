@@ -23,6 +23,7 @@ import { Platform } from 'react-native';
 import { authenticationStorage } from '@/platform/authentication-storage';
 import { trackStorage } from '@/platform/track-storage';
 import { api } from '@/services/api';
+import { desktopLogger } from '@/services/desktop-logger';
 import { desktopRipper, type StationRipSubscription } from '@/services/desktop-ripper';
 import { desktopUpdater } from '@/services/desktop-updater';
 
@@ -43,6 +44,7 @@ interface AppContextValue {
   clearError(): void;
   deviceCacheSupported: boolean;
   desktopRippingSupported: boolean;
+  desktopLogLocation: string | null;
   error: string | null;
   enterOfflineMode(): Promise<void>;
   exitOfflineMode(): void;
@@ -80,6 +82,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const player = useAudioPlayer(null, { updateInterval: 500 });
   const playerStatus = useAudioPlayerStatus(player);
   const [currentTrack, setCurrentTrack] = useState<PlayableItem | null>(null);
+  const [desktopLogLocation, setDesktopLogLocation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const blobUrl = useRef<string | null>(null);
   const offlineQueue = useRef<OfflineTrack[]>([]);
@@ -103,6 +106,10 @@ export function AppProvider({ children }: PropsWithChildren) {
   }
 
   useEffect(() => {
+    desktopLogger.initialize().then((location) => {
+      setDesktopLogLocation(location);
+      if (location) void desktopLogger.info(`API base URL: ${api.baseUrl}`);
+    }).catch(() => undefined);
     api.onUnauthorized(clearSession);
     setAudioModeAsync({
       interruptionMode: 'doNotMix',
@@ -130,9 +137,11 @@ export function AppProvider({ children }: PropsWithChildren) {
       refreshOfflineTracks().catch(() => undefined);
     });
     desktopRipper.initialize().catch((initializeError: unknown) => {
+      void desktopLogger.error(`Desktop ripping initialization failed: ${initializeError instanceof Error ? initializeError.message : String(initializeError)}`);
       setError(initializeError instanceof Error ? initializeError.message : 'Desktop ripping could not start.');
     });
     desktopUpdater.initialize().catch((initializeError: unknown) => {
+      void desktopLogger.error(`Desktop updater initialization failed: ${initializeError instanceof Error ? initializeError.message : String(initializeError)}`);
       setError(initializeError instanceof Error ? initializeError.message : 'Desktop update check failed.');
     });
     return unsubscribe;
@@ -364,6 +373,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       clearError: () => setError(null),
       currentTrack,
       deviceCacheSupported,
+      desktopLogLocation,
       desktopRippingSupported: desktopRipper.supported,
       error,
       enterOfflineMode,

@@ -15,7 +15,7 @@ const modes = [{ label: 'Sign in', value: 'login' }, { label: 'Create account', 
 export function AuthPanel() {
   const router = useRouter();
   const theme = useTheme();
-  const { enterOfflineMode, exitOfflineMode, offlineModeSupported, sessionStatus, signIn, signOut, signUp, user } = useApp();
+  const { desktopLogLocation, enterOfflineMode, exitOfflineMode, offlineModeSupported, sessionStatus, signIn, signOut, signUp, user } = useApp();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +49,7 @@ export function AuthPanel() {
         </View>
         <View style={styles.roles}>{user.roles.map((role) => <ThemedText key={role} style={styles.role}>{role}</ThemedText>)}</View>
         <ThemedText themeColor="textSecondary">Your account is active and synchronized with this device.</ThemedText>
+        {desktopLogLocation && <ThemedText selectable style={styles.logLocation} themeColor="textSecondary">Log file: {desktopLogLocation}</ThemedText>}
         <ActionButton danger label="Sign out of Music Library" onPress={() => void signOut()} />
       </ThemedView>
     );
@@ -89,6 +90,7 @@ export function AuthPanel() {
       {mode === 'register' && <ThemedText style={styles.requirement} themeColor="textSecondary">Use at least 8 characters.</ThemedText>}
       {status && <ThemedText style={styles.status}>{status}</ThemedText>}
       {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+      {desktopLogLocation && <ThemedText selectable style={styles.logLocation} themeColor="textSecondary">Log file: {desktopLogLocation}</ThemedText>}
       <ActionButton disabled={submitting || !canSubmit} label={submitting ? 'Working...' : mode === 'login' ? 'Sign in' : 'Create account'} onPress={() => void submit()} />
       {offlineModeSupported && <ActionButton label="Continue offline" quiet onPress={() => void enterOfflineMode().then(() => router.replace('/explore'))} />}
     </ThemedView>
@@ -102,6 +104,7 @@ const styles = StyleSheet.create({
   error: { color: Palette.danger, fontSize: 13 },
   identity: { alignItems: 'center', flexDirection: 'row', gap: Spacing.three },
   input: { borderColor: Palette.line, borderRadius: 4, borderWidth: 1, fontSize: 16, minHeight: 46, paddingHorizontal: 14 },
+  logLocation: { fontSize: 12 },
   name: { fontSize: 18, fontWeight: '800' },
   panel: { gap: Spacing.three, padding: Spacing.four },
   requirement: { fontSize: 12 },
