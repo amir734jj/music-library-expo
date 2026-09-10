@@ -18,7 +18,9 @@ function trackFileName(track: StationCachedTrackSummary): string {
 
 class DesktopRipper {
   readonly supported = typeof window !== 'undefined'
-    && ('__TAURI_INTERNALS__' in window || window.location.hostname === 'tauri.localhost');
+    && ('__TAURI_INTERNALS__' in window
+      || window.location.protocol === 'tauri:'
+      || window.location.hostname === 'tauri.localhost');
   private subscriptions: StationRipSubscription[] = [];
   private listeners = new Set<Listener>();
   private offline = false;

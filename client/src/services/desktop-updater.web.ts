@@ -5,7 +5,9 @@ const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 class DesktopUpdater {
   private initialized = false;
   private readonly supported = typeof window !== 'undefined'
-    && ('__TAURI_INTERNALS__' in window || window.location.hostname === 'tauri.localhost');
+    && ('__TAURI_INTERNALS__' in window
+      || window.location.protocol === 'tauri:'
+      || window.location.hostname === 'tauri.localhost');
 
   async initialize(): Promise<void> {
     if (!this.supported || this.initialized) return;

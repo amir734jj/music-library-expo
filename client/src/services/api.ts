@@ -65,7 +65,7 @@ function resolveApiBaseUrl(): string {
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     const { hostname, origin, port, protocol } = window.location;
-    if (hostname === 'tauri.localhost') {
+    if (protocol === 'tauri:' || hostname === 'tauri.localhost') {
       return `${PRODUCTION_API_ORIGIN}/api`;
     }
     if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '3000') {

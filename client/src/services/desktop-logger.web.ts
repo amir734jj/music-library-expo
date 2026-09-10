@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 
 const isTauri = typeof window !== 'undefined'
-  && ('__TAURI_INTERNALS__' in window || window.location.hostname === 'tauri.localhost');
+  && ('__TAURI_INTERNALS__' in window
+    || window.location.protocol === 'tauri:'
+    || window.location.hostname === 'tauri.localhost');
 
 function errorText(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);

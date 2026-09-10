@@ -7,7 +7,9 @@ const STORE_NAME = 'offline-tracks';
 interface StoredWebTrack extends OfflineTrack { data: Blob }
 
 const isTauri = typeof window !== 'undefined'
-  && ('__TAURI_INTERNALS__' in window || window.location.hostname === 'tauri.localhost');
+  && ('__TAURI_INTERNALS__' in window
+    || window.location.protocol === 'tauri:'
+    || window.location.hostname === 'tauri.localhost');
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
