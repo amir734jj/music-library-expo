@@ -50,7 +50,6 @@ jobs:
             NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   desktop:
-    if: ${{ false }} # Temporarily disabled
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -74,7 +73,6 @@ jobs:
           if-no-files-found: error
 
   android:
-    if: ${{ false }} # Temporarily disabled
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -109,11 +107,19 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [container]
+    needs: [container, desktop, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Assemble container release file
+      - uses: actions/download-artifact@v5
+        with:
+          name: desktop
+          path: release/desktop
+      - uses: actions/download-artifact@v5
+        with:
+          name: android
+          path: release/android
+      - name: Assemble release bundle
         shell: bash
         env:
           IMAGE: ${{ needs.container.outputs.image }}
@@ -126,7 +132,7 @@ jobs:
           mkdir -p release/container
           cp Dockerfile release/container/Dockerfile
           printf '%s\n%s\n' "$IMAGE" "ghcr.io/${GITHUB_REPOSITORY,,}:latest" > release/container/images.txt
-          (cd release && sha256sum container/Dockerfile container/images.txt > SHA256SUMS)
+          (cd release && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
           (cd release && zip -r "../music-library-${version}.zip" .)
       - name: Publish one GitHub release asset
         env:
@@ -141,4 +147,4 @@ jobs:
           gh release create "$version" "music-library-${version}.zip" \
             --target "$GITHUB_SHA" \
             --title "Music Library ${version}" \
-            --notes "Container release with immutable and latest GHCR image references, Dockerfile, and checksums."
+            --notes "Release bundle with Windows desktop installer, Android APK, immutable and latest GHCR image references, Dockerfile, and checksums."
