@@ -190,7 +190,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     };
 
     void refreshMetadata();
-    const interval = setInterval(() => void refreshMetadata(), 10_000);
+    const interval = setInterval(() => void refreshMetadata(), 5_000);
     return () => {
       active = false;
       clearInterval(interval);

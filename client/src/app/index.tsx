@@ -11,6 +11,7 @@ import { useApp } from '@/providers/app-provider';
 import { api } from '@/services/api';
 
 type DiscoverMode = 'air' | 'stations' | 'trending';
+const LIVE_REFRESH_INTERVAL_MS = 5_000;
 const modes = [
   { label: 'On air', value: 'air' },
   { label: 'Stations', value: 'stations' },
@@ -98,24 +99,63 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     if (sessionStatus === 'offline') return;
-    const refreshLiveData = () => {
-      api.nowPlaying(deferredQuery).then(setNowPlaying).catch(() => undefined);
-      api.trending(deferredQuery).then(setTrending).catch(() => undefined);
-      api.playbackActivity().then(setActivity).catch(() => undefined);
+    let active = true;
+    let refreshingLiveData = false;
+    const refreshLiveData = async () => {
+      if (refreshingLiveData) return;
+      refreshingLiveData = true;
+      try {
+        const activityRequest = api.playbackActivity();
+        if (mode === 'air') {
+          const [onAirResult, activityResult] = await Promise.allSettled([
+            api.nowPlaying(deferredQuery),
+            activityRequest,
+          ]);
+          if (active && onAirResult.status === 'fulfilled') setNowPlaying(onAirResult.value);
+          if (active && activityResult.status === 'fulfilled') setActivity(activityResult.value);
+          return;
+        }
+        if (mode === 'trending') {
+          const [trendingResult, activityResult] = await Promise.allSettled([
+            api.trending(deferredQuery),
+            activityRequest,
+          ]);
+          if (active && trendingResult.status === 'fulfilled') setTrending(trendingResult.value);
+          if (active && activityResult.status === 'fulfilled') setActivity(activityResult.value);
+          return;
+        }
+        const [stationResult, activityResult, cachedTrackResult] = await Promise.allSettled([
+          api.stations(deferredQuery),
+          activityRequest,
+          selectedStation ? api.stationCachedTracks(selectedStation.id) : Promise.resolve(null),
+        ]);
+        if (active && stationResult.status === 'fulfilled') {
+          setStations(stationResult.value);
+          setSelectedStation((selected) => {
+            if (!selected) return null;
+            return stationResult.value.find((station) => station.id === selected.id) ?? selected;
+          });
+        }
+        if (active && activityResult.status === 'fulfilled') setActivity(activityResult.value);
+        if (active && cachedTrackResult.status === 'fulfilled' && cachedTrackResult.value) {
+          setCachedTracks(cachedTrackResult.value);
+        }
+      } catch {
+        // Keep the last successful snapshot while a refresh is temporarily unavailable.
+      } finally {
+        refreshingLiveData = false;
+      }
     };
-    const interval = setInterval(() => {
-      refreshLiveData();
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, [deferredQuery, sessionStatus]);
+    void refreshLiveData();
+    const interval = setInterval(() => void refreshLiveData(), LIVE_REFRESH_INTERVAL_MS);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [deferredQuery, mode, selectedStation?.id, sessionStatus]);
 
   useEffect(() => {
-    if (sessionStatus === 'offline' || mode !== 'trending') return;
-    api.trending(deferredQuery).then(setTrending).catch(() => undefined);
-  }, [deferredQuery, mode, sessionStatus]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 15_000);
+    const interval = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(interval);
   }, []);
 
