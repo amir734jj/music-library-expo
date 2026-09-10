@@ -94,11 +94,21 @@ export default function DiscoverScreen() {
   }, [catalogRefreshAttempts, deferredQuery, error, loading, stations.length]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const refreshLiveData = () => {
+      api.nowPlaying(deferredQuery).then(setNowPlaying).catch(() => undefined);
+      api.trending(deferredQuery).then(setTrending).catch(() => undefined);
       api.playbackActivity().then(setActivity).catch(() => undefined);
+    };
+    const interval = setInterval(() => {
+      refreshLiveData();
     }, 15_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [deferredQuery]);
+
+  useEffect(() => {
+    if (mode !== 'trending') return;
+    api.trending(deferredQuery).then(setTrending).catch(() => undefined);
+  }, [deferredQuery, mode]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15_000);
