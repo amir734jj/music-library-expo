@@ -130,6 +130,43 @@ export function AppProvider({ children }: PropsWithChildren) {
     return () => clearInterval(interval);
   }, [currentTrack, playerStatus.playing, user]);
 
+  useEffect(() => {
+    const stationId = currentTrack?.isLive ? currentTrack.stationId : undefined;
+    if (!stationId) return;
+
+    let active = true;
+    const refreshMetadata = async () => {
+      try {
+        const metadata = await api.stationNowPlaying(stationId);
+        if (!active) return;
+        const title = metadata.title || metadata.rawMetadata || metadata.stationName;
+        const description = `${[metadata.artist, title].filter(Boolean).join(' - ')} on ${metadata.stationName}`;
+        setCurrentTrack((playing) => {
+          if (!playing?.isLive || playing.stationId !== stationId) return playing;
+          if (playing.artist === metadata.artist
+            && playing.description === description
+            && playing.stationName === metadata.stationName
+            && playing.title === title) return playing;
+          return { ...playing, artist: metadata.artist, description, stationName: metadata.stationName, title };
+        });
+        player.setActiveForLockScreen(true, {
+          albumTitle: metadata.stationName,
+          artist: metadata.artist ?? metadata.stationName,
+          title,
+        }, { isLiveStream: true });
+      } catch {
+        // Keep playing when a station has not published metadata yet.
+      }
+    };
+
+    void refreshMetadata();
+    const interval = setInterval(() => void refreshMetadata(), 10_000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [currentTrack?.isLive, currentTrack?.stationId, player]);
+
   async function signIn(input: LoginRequest): Promise<void> {
     setError(null);
     const response = await api.login(input);
