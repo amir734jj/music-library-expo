@@ -1,7 +1,7 @@
 export type {
 	UpdatePlaybackActivityRequest,
 	UserPlaybackActivitySummary,
-} from "./activity";
+} from "./activity.js";
 export type {
 	DirectoryImportSummary,
 	GlobalConfigModel,
@@ -10,28 +10,28 @@ export type {
 	TrendingCacheStatusSummary,
 	UpdateGlobalConfigRequest,
 	UpdateStationProbeRequest,
-} from "./admin";
+} from "./admin.js";
 export type {
 	AuthenticationResponse,
 	LoginAuthenticationResponse,
 	LoginRequest,
 	RegisterRequest,
 	RegistrationAuthenticationResponse,
-} from "./auth";
-export type { HealthStatus } from "./health";
+} from "./auth.js";
+export type { HealthStatus } from "./health.js";
 export type {
 	LiveStreamTicket,
 	NowPlayingSummary,
 	StationCachedTrackSummary,
 	StationSummary,
 	TrendingSummary,
-} from "./library";
-export type { ClientLoggingConfiguration } from "./logging";
+} from "./library.js";
+export type { ClientLoggingConfiguration } from "./logging.js";
 export type {
 	ArtistSubscriptionSummary,
 	CreateSubscriptionRequest,
 	UserAlertSummary,
-} from "./subscriptions";
+} from "./subscriptions.js";
 export type {
 	AudioSource,
 	AuthenticationStorage,
@@ -43,10 +43,10 @@ export type {
 	StoredAuthentication,
 	TrackPlayer,
 	TrackStorage,
-} from "./platform";
-export { UserRole } from "./users";
+} from "./platform.js";
+export { UserRole } from "./users.js";
 export type {
 	UpdateUserRequest,
 	UserResponse,
 	UserRole as UserRoleType,
-} from "./users";
+} from "./users.js";
