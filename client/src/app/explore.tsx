@@ -8,11 +8,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Palette, Spacing } from '@/constants/theme';
 import { AdminPanel } from '@/features/admin-panel';
-import { AuthPanel } from '@/features/auth-panel';
 import { LibraryPanel, type LibraryMode } from '@/features/library-panel';
 import { useApp } from '@/providers/app-provider';
 
-type WorkspaceMode = LibraryMode | 'account' | 'admin';
+type WorkspaceMode = LibraryMode | 'admin';
 
 export default function LibraryScreen() {
   const { offlineTracks, user } = useApp();
@@ -22,12 +21,11 @@ export default function LibraryScreen() {
     { label: `Saved (${offlineTracks.length})`, value: 'saved' },
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
-    { label: 'Account', value: 'account' },
     ...(isAdmin ? [{ label: 'Admin', value: 'admin' as const }] : []),
   ];
 
   useEffect(() => {
-    if (mode === 'admin' && !isAdmin) setMode('account');
+    if (mode === 'admin' && !isAdmin) setMode('saved');
   }, [isAdmin, mode]);
 
   return (
@@ -36,7 +34,7 @@ export default function LibraryScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <ScreenHeader
             eyebrow={user ? `Signed in as ${user.displayName || user.email}` : 'Your collection'}
-            title="Library and account"
+            title="Library"
             trailing={<View style={styles.status}><View style={[styles.statusDot, { backgroundColor: user ? Palette.accent : Palette.gold }]} /><ThemedText style={styles.statusText}>{user ? 'Synced' : 'Local only'}</ThemedText></View>}
           />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
@@ -44,7 +42,6 @@ export default function LibraryScreen() {
           </ScrollView>
           <View style={styles.workspace}>
             {(mode === 'saved' || mode === 'following' || mode === 'alerts') && <LibraryPanel mode={mode} />}
-            {mode === 'account' && <AuthPanel />}
             {mode === 'admin' && isAdmin && <AdminPanel />}
           </View>
         </ScrollView>

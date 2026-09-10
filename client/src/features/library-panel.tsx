@@ -1,4 +1,5 @@
 import type { ArtistSubscriptionSummary, UserAlertSummary } from '@music-library/core';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
@@ -14,6 +15,7 @@ import { api } from '@/services/api';
 export type LibraryMode = 'alerts' | 'following' | 'saved';
 
 export function LibraryPanel({ mode }: { mode: LibraryMode }) {
+  const router = useRouter();
   const theme = useTheme();
   const { offlineTracks, play, removeOfflineTrack, sessionStatus, user } = useApp();
   const [alerts, setAlerts] = useState<UserAlertSummary[]>([]);
@@ -55,7 +57,14 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
   }
 
   if (sessionStatus === 'restoring') return <LoadingState />;
-  if (!user) return <EmptyState>Sign in from Account to follow artists and receive alerts.</EmptyState>;
+  if (!user) {
+    return (
+      <View style={styles.signedOut}>
+        <EmptyState>Sign in to follow artists and receive alerts.</EmptyState>
+        <ActionButton label="Sign in or create an account" onPress={() => router.push('/account')} />
+      </View>
+    );
+  }
   if (loading) return <LoadingState />;
 
   return (
@@ -74,5 +83,6 @@ const styles = StyleSheet.create({
   error: { color: Palette.danger, paddingVertical: Spacing.three },
   input: { borderBottomColor: Palette.line, borderBottomWidth: 1, flex: 1, fontSize: 16, minHeight: 42, minWidth: 180, paddingHorizontal: Spacing.two },
   rowTop: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  signedOut: { alignItems: 'center', gap: Spacing.two },
   title: { fontSize: 15, fontWeight: '800' },
 });

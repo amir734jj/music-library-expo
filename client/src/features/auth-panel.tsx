@@ -21,6 +21,9 @@ export function AuthPanel() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const canSubmit = Boolean(email.trim()) && password.length > 0 && (
+    mode === 'login' || (password.length >= 8 && password === passwordConfirmation)
+  );
   const inputStyle = [styles.input, { backgroundColor: theme.background, color: theme.text }];
 
   if (sessionStatus === 'restoring') {
@@ -65,10 +68,11 @@ export function AuthPanel() {
       <SegmentControl options={modes} onChange={setMode} value={mode} />
       {mode === 'register' && <TextInput autoCapitalize="words" onChangeText={setDisplayName} placeholder="Display name (optional)" placeholderTextColor={theme.textSecondary} style={inputStyle} value={displayName} />}
       <TextInput autoCapitalize="none" autoComplete="email" inputMode="email" onChangeText={setEmail} placeholder="Email" placeholderTextColor={theme.textSecondary} style={inputStyle} value={email} />
-      <TextInput autoCapitalize="none" autoComplete="password" onChangeText={setPassword} placeholder="Password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={password} />
-      {mode === 'register' && <TextInput autoCapitalize="none" onChangeText={setPasswordConfirmation} placeholder="Confirm password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={passwordConfirmation} />}
+      <TextInput autoCapitalize="none" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} onChangeText={setPassword} placeholder="Password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={password} />
+      {mode === 'register' && <TextInput autoCapitalize="none" autoComplete="new-password" onChangeText={setPasswordConfirmation} placeholder="Confirm password" placeholderTextColor={theme.textSecondary} secureTextEntry style={inputStyle} value={passwordConfirmation} />}
+      {mode === 'register' && <ThemedText style={styles.requirement} themeColor="textSecondary">Use at least 8 characters.</ThemedText>}
       {error && <ThemedText style={styles.error}>{error}</ThemedText>}
-      <ActionButton disabled={submitting || !email || !password} label={submitting ? 'Working...' : mode === 'login' ? 'Sign in' : 'Create account'} onPress={() => void submit()} />
+      <ActionButton disabled={submitting || !canSubmit} label={submitting ? 'Working...' : mode === 'login' ? 'Sign in' : 'Create account'} onPress={() => void submit()} />
     </ThemedView>
   );
 }
@@ -82,6 +86,7 @@ const styles = StyleSheet.create({
   input: { borderColor: Palette.line, borderRadius: 4, borderWidth: 1, fontSize: 16, minHeight: 46, paddingHorizontal: 14 },
   name: { fontSize: 18, fontWeight: '800' },
   panel: { gap: Spacing.three, padding: Spacing.four },
+  requirement: { fontSize: 12 },
   role: { backgroundColor: '#DDE9E2', borderRadius: 3, color: Palette.accentStrong, fontSize: 12, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4 },
   roles: { flexDirection: 'row', gap: Spacing.two },
 });
