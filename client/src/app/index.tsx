@@ -23,7 +23,9 @@ function trackName(artist: string | null, title: string | null, fallback: string
 
 export default function DiscoverScreen() {
   const {
+    currentTrack,
     desktopRippingSupported,
+    isPlaying,
     play,
     saveTrack,
     stationRipSubscriptions,
@@ -78,6 +80,13 @@ export default function DiscoverScreen() {
     return () => clearTimeout(timeout);
   }, [catalogRefreshAttempts, deferredQuery, error, loading, stations.length]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      api.playbackActivity().then(setActivity).catch(() => undefined);
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
   async function selectStation(station: StationSummary): Promise<void> {
     setSelectedStation(station);
     setCachedTracks(await api.stationCachedTracks(station.id).catch(() => []));
@@ -103,6 +112,7 @@ export default function DiscoverScreen() {
   const ripAction = (stationId: string, stationName: string) => desktopRippingSupported && user
     ? <ActionButton label={isRipping(stationId) ? 'Ripping' : 'Rip'} quiet={!isRipping(stationId)} onPress={() => void toggleStationRipping(stationId, stationName)} />
     : null;
+  const visibleActivity = activity.filter((listener) => listener.userId !== user?.id || (currentTrack && isPlaying));
 
   return (
     <ThemedView style={styles.page}>
@@ -122,9 +132,9 @@ export default function DiscoverScreen() {
               <View style={styles.sideColumn}>
                 <SectionHeader title={selectedStation ? selectedStation.name : 'Station detail'} />
                 {!selectedStation ? <EmptyState>Select a station to inspect its recent cached tracks.</EmptyState> : <ThemedView type="backgroundElement" style={styles.detailPanel}><ThemedText themeColor="textSecondary">{selectedStation.genre || 'Uncategorized'}</ThemedText><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(selectedStation.id, selectedStation.name, selectedStation.name)} />{ripAction(selectedStation.id, selectedStation.name)}</View><SectionHeader count={cachedTracks.length} title="Recent captures" />{cachedTracks.map((track) => <View key={track.cachedTrackId} style={styles.miniRow}><ThemedText numberOfLines={1} style={styles.miniTitle}>{trackName(track.artist, track.title, track.artist)}</ThemedText><View style={styles.actions}><ActionButton label="Play" quiet onPress={() => void play({ artist: track.artist, description: trackName(track.artist, track.title, track.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(track.cachedTrackId) }, stationName: selectedStation.name, title: track.title || track.artist })} /><ActionButton label="Save" quiet onPress={() => void saveTrack(track.cachedTrackId, `${trackName(track.artist, track.title, track.artist)}.mp3`, selectedStation.name)} /></View></View>)}</ThemedView>}
-                <SectionHeader count={activity.length} title="Listening now" />
-                {activity.length === 0 && <EmptyState>No listeners are currently sharing activity.</EmptyState>}
-                {activity.map((listener) => <View key={listener.userId} style={styles.listenerRow}><View style={styles.presence} /><View style={styles.rowCopy}><ThemedText style={styles.listenerName}>{listener.userDisplayName}</ThemedText><ThemedText numberOfLines={2} style={styles.meta} themeColor="textSecondary">{listener.playbackDescription}</ThemedText></View></View>)}
+                <SectionHeader count={visibleActivity.length} title="Listening now" />
+                {visibleActivity.length === 0 && <EmptyState>No listeners are currently sharing activity.</EmptyState>}
+                {visibleActivity.map((listener) => <View key={listener.userId} style={styles.listenerRow}><View style={styles.presence} /><View style={styles.rowCopy}><ThemedText style={styles.listenerName}>{listener.userDisplayName}</ThemedText><ThemedText numberOfLines={2} style={styles.meta} themeColor="textSecondary">{listener.playbackDescription}</ThemedText></View></View>)}
               </View>
             </View>
           )}

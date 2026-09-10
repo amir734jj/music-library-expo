@@ -76,6 +76,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [sessionStatus, setSessionStatus] = useState<AppContextValue['sessionStatus']>('restoring');
   const [stationRipSubscriptions, setStationRipSubscriptions] = useState<StationRipSubscription[]>([]);
   const [user, setUser] = useState<UserResponse | null>(null);
+  const isPlaybackActive = currentTrack !== null && playerStatus.playing;
 
   async function clearSession(): Promise<void> {
     player.pause();
@@ -129,6 +130,20 @@ export function AppProvider({ children }: PropsWithChildren) {
     const interval = setInterval(heartbeat, 45_000);
     return () => clearInterval(interval);
   }, [currentTrack, playerStatus.playing, user]);
+
+  useEffect(() => {
+    if (!user || isPlaybackActive) return;
+    api.clearPlaybackActivity().catch(() => undefined);
+  }, [isPlaybackActive, user]);
+
+  useEffect(() => {
+    if (!user || typeof window === 'undefined') return;
+    const clearActivity = () => {
+      void api.clearPlaybackActivity(true).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', clearActivity);
+    return () => window.removeEventListener('pagehide', clearActivity);
+  }, [user]);
 
   useEffect(() => {
     const stationId = currentTrack?.isLive ? currentTrack.stationId : undefined;

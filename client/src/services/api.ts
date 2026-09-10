@@ -33,6 +33,7 @@ const PRODUCTION_API_ORIGIN = 'https://music-library.coolify.hesamian.com';
 interface RequestOptions {
   authenticated?: boolean;
   body?: unknown;
+  keepalive?: boolean;
   method?: 'DELETE' | 'GET' | 'POST' | 'PUT';
   query?: Query;
 }
@@ -127,6 +128,7 @@ export class MusicLibraryApi {
     const response = await fetch(url, {
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       headers,
+      keepalive: options.keepalive,
       method: options.method ?? 'GET',
     });
 
@@ -216,8 +218,8 @@ export class MusicLibraryApi {
     return this.request<void>('/playback-activity', { authenticated: true, body: input, method: 'PUT' });
   }
 
-  clearPlaybackActivity() {
-    return this.request<void>('/playback-activity', { authenticated: true, method: 'DELETE' });
+  clearPlaybackActivity(keepalive = false) {
+    return this.request<void>('/playback-activity', { authenticated: true, keepalive, method: 'DELETE' });
   }
 
   adminUsers() {
