@@ -6,6 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
+import { UserRole } from '@music-library/core';
 import { Pressable, View, StyleSheet } from 'react-native';
 
 import { ThemedText } from './themed-text';
@@ -15,7 +16,8 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useApp } from '@/providers/app-provider';
 
 export default function AppTabs() {
-  const { sessionStatus } = useApp();
+  const { sessionStatus, user } = useApp();
+  const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
 
   return (
     <Tabs>
@@ -28,6 +30,9 @@ export default function AppTabs() {
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Library</TabButton>
           </TabTrigger>
+          {isAdmin && <TabTrigger name="admin" href="/admin" asChild>
+            <TabButton>Admin</TabButton>
+          </TabTrigger>}
           <TabTrigger name="account" href="/account" asChild>
             <TabButton>{sessionStatus === 'anonymous' ? 'Sign in' : 'Account'}</TabButton>
           </TabTrigger>

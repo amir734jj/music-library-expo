@@ -1,3 +1,4 @@
+import { UserRole } from '@music-library/core';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'react-native';
 
@@ -7,7 +8,8 @@ import { useApp } from '@/providers/app-provider';
 export default function AppTabs() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-  const { sessionStatus } = useApp();
+  const { sessionStatus, user } = useApp();
+  const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
 
   return (
     <NativeTabs
@@ -29,6 +31,14 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      {isAdmin && <NativeTabs.Trigger name="admin">
+        <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
+          md={{ default: 'settings', selected: 'settings' }}
+        />
+      </NativeTabs.Trigger>}
 
       <NativeTabs.Trigger name="account">
         <NativeTabs.Trigger.Label>

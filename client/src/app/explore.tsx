@@ -1,5 +1,4 @@
-import { UserRole } from '@music-library/core';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,27 +6,18 @@ import { ScreenHeader, SegmentControl } from '@/components/music-ui';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Palette, Spacing } from '@/constants/theme';
-import { AdminPanel } from '@/features/admin-panel';
 import { LibraryPanel, type LibraryMode } from '@/features/library-panel';
 import { useApp } from '@/providers/app-provider';
 
-type WorkspaceMode = LibraryMode | 'admin';
-
 export default function LibraryScreen() {
   const { desktopRippingSupported, offlineTracks, stationRipSubscriptions, user } = useApp();
-  const [mode, setMode] = useState<WorkspaceMode>('saved');
-  const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
-  const options: readonly { label: string; value: WorkspaceMode }[] = [
+  const [mode, setMode] = useState<LibraryMode>('saved');
+  const options: readonly { label: string; value: LibraryMode }[] = [
     { label: `Saved (${offlineTracks.length})`, value: 'saved' },
     ...(desktopRippingSupported ? [{ label: `Ripping (${stationRipSubscriptions.length})`, value: 'ripping' as const }] : []),
     { label: 'Following', value: 'following' },
     { label: 'Alerts', value: 'alerts' },
-    ...(isAdmin ? [{ label: 'Admin', value: 'admin' as const }] : []),
   ];
-
-  useEffect(() => {
-    if (mode === 'admin' && !isAdmin) setMode('saved');
-  }, [isAdmin, mode]);
 
   return (
     <ThemedView style={styles.page}>
@@ -42,8 +32,7 @@ export default function LibraryScreen() {
             <View style={styles.tabs}><SegmentControl options={options} onChange={setMode} value={mode} /></View>
           </ScrollView>
           <View style={styles.workspace}>
-            {(mode === 'saved' || mode === 'ripping' || mode === 'following' || mode === 'alerts') && <LibraryPanel mode={mode} />}
-            {mode === 'admin' && isAdmin && <AdminPanel />}
+            <LibraryPanel mode={mode} />
           </View>
         </ScrollView>
       </SafeAreaView>
