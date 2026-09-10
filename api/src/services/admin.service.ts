@@ -189,7 +189,7 @@ export class AdminService {
       }
       try {
         const content = await this.storage.read(track.filePath, oldKey);
-        const stored = await this.storage.save(content, nextKey);
+        const stored = await this.storage.save(content, nextKey, track.id);
         const oldPath = track.filePath;
         track.filePath = stored.filePath;
         track.keyFingerprint = stored.keyFingerprint;

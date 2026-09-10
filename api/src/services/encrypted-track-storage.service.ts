@@ -6,10 +6,9 @@ import {
   createDecipheriv,
   createHash,
   randomBytes,
-  randomUUID,
 } from "node:crypto";
-import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 
 export interface StoredTrackFile {
   filePath: string;
@@ -25,12 +24,11 @@ export class EncryptedTrackStorageService {
     this.directory = config.get("trendingCacheDirectory", { infer: true });
   }
 
-  async save(data: Uint8Array, key: Buffer): Promise<StoredTrackFile> {
+  async save(data: Uint8Array, key: Buffer, fileIdentifier: string): Promise<StoredTrackFile> {
     if (key.byteLength !== 32) throw new Error("Track cache key must contain 32 bytes");
     await mkdir(this.directory, { recursive: true });
 
-    const id = randomUUID();
-    const destination = join(this.directory, `${id}.track`);
+    const destination = join(this.directory, createEncryptedTrackFileName(fileIdentifier, key));
     const temporary = `${destination}.tmp`;
     const initializationVector = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", key, initializationVector);
@@ -69,6 +67,17 @@ export class EncryptedTrackStorageService {
     return Buffer.concat([decipher.update(encrypted), decipher.final()]);
   }
 
+  async encryptLegacyFileName(
+    filePath: string,
+    fileIdentifier: string,
+    key: Buffer,
+  ): Promise<string> {
+    if (/^enc-[A-Za-z0-9_-]+\.track$/u.test(basename(filePath))) return filePath;
+    const destination = join(this.directory, createEncryptedTrackFileName(fileIdentifier, key));
+    await copyFile(filePath, destination);
+    return destination;
+  }
+
   async exists(filePath: string): Promise<boolean> {
     try {
       await access(filePath);
@@ -89,4 +98,20 @@ export class EncryptedTrackStorageService {
       return 0;
     }
   }
+}
+
+export function createEncryptedTrackFileName(identifier: string, key: Buffer): string {
+  if (key.byteLength !== 32) throw new Error("Track cache key must contain 32 bytes");
+  const initializationVector = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, initializationVector);
+  const encrypted = Buffer.concat([
+    cipher.update(identifier, "utf8"),
+    cipher.final(),
+  ]);
+  const encodedName = Buffer.concat([
+    initializationVector,
+    cipher.getAuthTag(),
+    encrypted,
+  ]).toString("base64url");
+  return `enc-${encodedName}.track`;
 }

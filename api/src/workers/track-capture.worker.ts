@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Interval } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
 import { isInteger } from "lodash-es";
+import { randomUUID } from "node:crypto";
 import { Repository } from "typeorm";
 
 import { CachedTrack, GlobalConfigRow } from "#entities";
@@ -23,6 +24,32 @@ export class TrackCaptureWorker {
     @InjectRepository(CachedTrack) private readonly tracks: Repository<CachedTrack>,
     @InjectRepository(GlobalConfigRow) private readonly config: Repository<GlobalConfigRow>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    const keyRow = await this.config.findOneBy({ key: "TRENDING_CACHE_ENCRYPTION_KEY" });
+    const key = decodeKey(keyRow?.value);
+    if (!key) return;
+    const tracks = await this.tracks.find();
+    for (const track of tracks) {
+      const legacyPath = track.filePath;
+      let encryptedPath: string | null = null;
+      try {
+        encryptedPath = await this.storage.encryptLegacyFileName(legacyPath, track.id, key);
+        if (encryptedPath === legacyPath) continue;
+        track.filePath = encryptedPath;
+        await this.tracks.save(track);
+        await this.storage.delete(legacyPath);
+      } catch (error) {
+        if (encryptedPath && encryptedPath !== legacyPath) {
+          await this.storage.delete(encryptedPath);
+          track.filePath = legacyPath;
+        }
+        this.logger.warn(
+          `Could not encrypt the cache filename for track ${track.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
 
   @Interval(1_000)
   async processNext(): Promise<void> {
@@ -54,10 +81,12 @@ export class TrackCaptureWorker {
         1_024,
       ) * 1_024 * 1_024;
       const song = await this.capture.capture(request.streamUrl, timeoutSeconds * 1_000);
-      const stored = await this.storage.save(song.data, key);
+      const trackId = randomUUID();
+      const stored = await this.storage.save(song.data, key, trackId);
       const createdAt = new Date();
 
       await this.tracks.save({
+        id: trackId,
         playObservationId: request.observationId,
         artist: song.artist,
         title: song.title,
