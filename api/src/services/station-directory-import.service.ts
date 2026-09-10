@@ -16,7 +16,9 @@ interface DirectoryStation {
   id?: number;
   ID?: number;
   name?: string;
-  url?: string;
+  Name?: string;
+  url?: string | null;
+  StreamUrl?: string | null;
 }
 
 const NON_MUSIC_GENRES = new Set(["public radio", "talk"]);
@@ -58,15 +60,14 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Directory download failed with ${response.status}`);
     const catalog = (await response.json()) as Record<string, DirectoryStation[]>;
-    const existing = new Map(
-      (await this.stations.find()).map((station) => [station.directoryId, station]),
+    const existingDirectoryIds = new Set(
+      (await this.stations.find({ select: { directoryId: true } }))
+        .map((station) => station.directoryId),
     );
     const rows = new Map<
       string,
       Pick<Station, "directoryId" | "genre" | "name" | "streamUrl">
     >();
-    let created = 0;
-    let updated = 0;
     let rejected = 0;
 
     for (const [genre, entries] of Object.entries(catalog)) {
@@ -77,24 +78,20 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
       }
       for (const entry of entries) {
         const directoryId = String(entry.id ?? entry.ID ?? 0);
-        const name = entry.name?.trim();
-        const streamUrl = supportedUrl(entry.url);
+        const name = (entry.name ?? entry.Name)?.trim();
+        const streamUrl = supportedUrl(entry.url ?? entry.StreamUrl);
         if (directoryId === "0" || !name || !streamUrl) {
           rejected++;
           continue;
         }
-        const station = existing.get(directoryId);
-        if (station) {
-          rows.set(directoryId, { directoryId, genre, name, streamUrl });
-          updated++;
-        } else {
-          rows.set(directoryId, { directoryId, genre, name, streamUrl });
-          existing.set(directoryId, this.stations.create({ directoryId }));
-          created++;
-        }
+        rows.set(directoryId, { directoryId, genre, name, streamUrl });
       }
     }
     const stationRows = [...rows.values()];
+    const created = stationRows.filter(
+      (station) => !existingDirectoryIds.has(station.directoryId),
+    ).length;
+    const updated = stationRows.length - created;
     for (let index = 0; index < stationRows.length; index += UPSERT_BATCH_SIZE) {
       await this.stations.upsert(stationRows.slice(index, index + UPSERT_BATCH_SIZE), {
         conflictPaths: ["directoryId"],
@@ -105,7 +102,7 @@ export class StationDirectoryImportService implements OnApplicationBootstrap {
   }
 }
 
-function supportedUrl(value?: string): string | null {
+function supportedUrl(value?: string | null): string | null {
   if (!value) return null;
   try {
     const url = new URL(value.trim());
