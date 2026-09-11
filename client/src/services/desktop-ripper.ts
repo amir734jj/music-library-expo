@@ -4,10 +4,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { api } from '@/services/api';
 import { desktopLogger } from '@/services/desktop-logger';
 
+export enum StationRipStatus {
+  Error = 'error',
+  Saved = 'saved',
+  Syncing = 'syncing',
+  Waiting = 'waiting',
+}
+
 export interface StationRipSubscription {
   stationId: string;
   stationName: string;
-  status?: 'error' | 'saved' | 'syncing' | 'waiting';
+  status?: StationRipStatus;
   statusMessage?: string;
 }
 
@@ -33,7 +40,7 @@ class DesktopRipper {
   async initialize(): Promise<void> {
     if (!this.supported) return;
     this.subscriptions = (await invoke<StationRipSubscription[]>('list_station_subscriptions'))
-      .map((subscription: StationRipSubscription) => ({ ...subscription, status: 'waiting' }));
+      .map((subscription: StationRipSubscription) => ({ ...subscription, status: StationRipStatus.Waiting }));
     await desktopLogger.info(`Ripping initialized with ${this.subscriptions.length} station subscription(s)`);
     this.emit();
     await this.synchronize();
@@ -59,7 +66,7 @@ class DesktopRipper {
       const subscription: StationRipSubscription = {
         stationId,
         stationName,
-        status: 'syncing',
+        status: StationRipStatus.Syncing,
         statusMessage: 'Requesting the next complete song...',
       };
       this.subscriptions = [...this.subscriptions, subscription]
@@ -87,7 +94,7 @@ class DesktopRipper {
     try {
       for (const subscription of this.subscriptions) {
         try {
-          this.updateStatus(subscription.stationId, 'syncing', 'Requesting the next complete song...');
+          this.updateStatus(subscription.stationId, StationRipStatus.Syncing, 'Requesting the next complete song...');
           await api.requestCapture(subscription.stationId);
           const tracks = await api.stationCachedTracks(subscription.stationId);
           let stationDownloads = 0;
@@ -106,11 +113,15 @@ class DesktopRipper {
             : tracks.length > 0
               ? 'Watching for new songs. Existing captures are already saved.'
               : 'Waiting for the next complete song...';
-          this.updateStatus(subscription.stationId, stationDownloads > 0 ? 'saved' : 'waiting', statusMessage);
+          this.updateStatus(
+            subscription.stationId,
+            stationDownloads > 0 ? StationRipStatus.Saved : StationRipStatus.Waiting,
+            statusMessage,
+          );
           await desktopLogger.info(`Ripping station ${subscription.stationId}: ${statusMessage}`);
         } catch (syncError) {
           const message = syncError instanceof Error ? syncError.message : String(syncError);
-          this.updateStatus(subscription.stationId, 'error', message);
+          this.updateStatus(subscription.stationId, StationRipStatus.Error, message);
           await desktopLogger.error(`Ripping station ${subscription.stationId} failed: ${message}`);
         }
       }
@@ -122,7 +133,7 @@ class DesktopRipper {
 
   private updateStatus(
     stationId: string,
-    status: StationRipSubscription['status'],
+    status: StationRipStatus,
     statusMessage: string,
   ): void {
     this.subscriptions = this.subscriptions.map((subscription) => subscription.stationId === stationId
