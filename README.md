@@ -2,18 +2,13 @@
 
 TypeScript workspace containing the NestJS/PostgreSQL API, shared contracts and application logic, and the Expo/Tauri client.
 
-## GitHub Packages
+## Dependencies
 
-The API uses `@amir734jj/stream-ripper@1.0.0` from GitHub Packages for ICY metadata parsing and completed-song capture. GitHub Packages requires authentication even when the source repository is public.
+The API uses the public `@amir734jj/stream-ripper@1.0.1` npm package for ICY metadata parsing and completed-song capture.
 
-Create a GitHub token with `read:packages`, then set it directly in your shell before installing dependencies. Do not commit the token or place its value in `.npmrc`.
-
-```powershell
-$env:NODE_AUTH_TOKEN = "<token>"
+```shell
 npm install
 ```
-
-The release workflow uses its short-lived `GITHUB_TOKEN`. The package settings must grant this repository read access under **Manage Actions access**.
 
 ## Stream Processing
 

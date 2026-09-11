@@ -47,8 +47,6 @@ jobs:
           tags: |
             ${{ steps.image.outputs.name }}
             ghcr.io/${{ github.repository }}:latest
-          secrets: |
-            NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
 
   desktop-windows:
     runs-on: windows-latest
@@ -63,8 +61,6 @@ jobs:
         with:
           workspaces: client/src-tauri
       - run: npm install --workspaces --include-workspace-root
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build --workspace @music-library/core
       - name: Set desktop release version
         shell: pwsh
@@ -101,8 +97,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - run: npm install --workspaces --include-workspace-root
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build --workspace @music-library/core
       - name: Set desktop release version
         shell: bash
@@ -137,8 +131,6 @@ jobs:
         with:
           cache-read-only: false
       - run: npm install --workspaces --include-workspace-root
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build --workspace @music-library/core
       - run: npm exec --workspace @music-library/client -- expo prebuild --platform android --non-interactive
       - name: Build APK

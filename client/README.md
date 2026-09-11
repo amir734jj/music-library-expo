@@ -13,4 +13,4 @@ npm run android --workspace @music-library/client
 npm run tauri --workspace @music-library/client -- dev
 ```
 
-Dependencies must first be installed from the workspace root with `NODE_AUTH_TOKEN` configured for the private stream-ripper package.
+Dependencies must first be installed from the workspace root with `npm install`.

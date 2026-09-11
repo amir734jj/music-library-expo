@@ -131,7 +131,7 @@ export class StationProbeWorker {
     } catch (error) {
       await this.stations.increment({ id: station.id }, "consecutiveProbeFailures", 1);
       await this.stations.update({ id: station.id }, { lastProbedAt: probedAt });
-      this.logger.warn(
+      this.logger.debug(
         `Probe failed for station ${station.id}: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
