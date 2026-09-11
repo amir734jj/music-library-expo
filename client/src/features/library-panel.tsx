@@ -67,7 +67,7 @@ export function LibraryPanel({ mode }: { mode: LibraryMode }) {
   }
 
   if (mode === 'ripping') {
-    return <View><SectionHeader count={stationRipSubscriptions.length} title="Stations being ripped" />{stationRipSubscriptions.length === 0 && <EmptyState>Choose Rip beside a station to start collecting complete songs.</EmptyState>}{stationRipSubscriptions.map((subscription) => <Row key={subscription.stationId}><View style={styles.rowTop}><View style={styles.copy}><ThemedText style={styles.title}>{subscription.stationName}</ThemedText><ThemedText themeColor="textSecondary">Saving new tracks to Music/Music Library</ThemedText></View><ActionButton danger label="Stop ripping" onPress={() => void toggleStationRipping(subscription.stationId, subscription.stationName)} /></View></Row>)}</View>;
+    return <View><SectionHeader count={stationRipSubscriptions.length} title="Stations being ripped" />{stationRipSubscriptions.length === 0 && <EmptyState>Choose Rip beside a station to start collecting complete songs.</EmptyState>}{stationRipSubscriptions.map((subscription) => <Row key={subscription.stationId}><View style={styles.rowTop}><View style={styles.copy}><ThemedText style={styles.title}>{subscription.stationName}</ThemedText><ThemedText style={subscription.status === 'error' ? styles.ripError : undefined} themeColor="textSecondary">{subscription.statusMessage || 'Waiting for the next complete song...'}</ThemedText><ThemedText style={styles.location} themeColor="textSecondary">Saving to Music/Music Library</ThemedText></View><ActionButton danger label="Stop ripping" onPress={() => void toggleStationRipping(subscription.stationId, subscription.stationName)} /></View></Row>)}</View>;
   }
 
   if (sessionStatus === 'restoring') return <LoadingState />;
@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
   error: { color: Palette.danger, paddingVertical: Spacing.three },
   input: { borderBottomColor: Palette.line, borderBottomWidth: 1, flex: 1, fontSize: 16, minHeight: 42, minWidth: 180, paddingHorizontal: Spacing.two },
   location: { marginTop: Spacing.one },
+  ripError: { color: Palette.danger },
   rowTop: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   signedOut: { alignItems: 'center', gap: Spacing.two },
   title: { fontSize: 15, fontWeight: '800' },
