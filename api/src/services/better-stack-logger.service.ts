@@ -47,16 +47,21 @@ export class BetterStackLogger extends ConsoleLogger {
   }
 
   reportClient(event: ClientLogRequest): void {
-    void this.send({
-      context: clean(event.context),
+    const payload: BetterStackEvent = {
       dt: event.timestamp,
       level: event.level,
-      message: clean(event.message),
-      platform: clean(event.platform),
+      message: clean(event.message) ?? "Unknown client log message",
       service: "client",
-      stack: clean(event.stack),
-      version: clean(event.version),
-    });
+    };
+    const context = clean(event.context);
+    const platform = clean(event.platform);
+    const stack = clean(event.stack);
+    const version = clean(event.version);
+    if (context) payload.context = context;
+    if (platform) payload.platform = platform;
+    if (stack) payload.stack = stack;
+    if (version) payload.version = version;
+    void this.send(payload);
   }
 
   private sendNestEvent(
@@ -65,14 +70,17 @@ export class BetterStackLogger extends ConsoleLogger {
     stack?: string,
     context?: string,
   ): void {
-    void this.send({
-      context: clean(context),
+    const payload: BetterStackEvent = {
       dt: new Date().toISOString(),
       level,
       message: clean(messageText(message)) ?? "Unknown log message",
       service: "api",
-      stack: clean(stack),
-    });
+    };
+    const cleanContext = clean(context);
+    const cleanStack = clean(stack);
+    if (cleanContext) payload.context = cleanContext;
+    if (cleanStack) payload.stack = cleanStack;
+    void this.send(payload);
   }
 
   private async send(event: BetterStackEvent): Promise<void> {
