@@ -206,6 +206,7 @@ jobs:
             release/desktop/music-library-windows.exe.sig
             release/desktop/music-library-linux-x86_64.AppImage
             release/desktop/music-library-linux-x86_64.AppImage.sig
+            release/android/music-library.apk
           )
           notes="Release bundle with Windows installer, Ubuntu AppImage, Android APK, GHCR image references, Dockerfile, and checksums."
           if gh release view latest >/dev/null 2>&1; then
