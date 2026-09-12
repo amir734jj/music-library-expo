@@ -2,7 +2,7 @@
 
 One Expo Router application targets Android, web, and the Tauri Windows shell. It provides station discovery, live and cached playback, offline tracks, artist subscriptions and alerts, listener presence, and administration.
 
-The client uses `EXPO_PUBLIC_API_URL` when provided. Local Expo development discovers the Metro host and uses port `3000`; packaged native and Tauri clients otherwise use the deployed Music Library API. The Docker-hosted web export uses its own origin.
+Android, iOS, and packaged Tauri clients always use `https://music-library2.coolify.hesamian.com/api`. Browser development can use `EXPO_PUBLIC_API_URL`; otherwise local browser builds use port `3000` and the Docker-hosted web export uses its own origin.
 
 Run client commands from the repository root:
 

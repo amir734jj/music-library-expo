@@ -22,15 +22,14 @@ import type {
   UserPlaybackActivitySummary,
   UserResponse,
 } from '@music-library/core';
-import Constants from 'expo-constants';
 import { isArray } from 'lodash-es';
 import { Platform } from 'react-native';
 
+import { API_BASE_URL } from '@/constants/endpoints';
 import { desktopLogger } from '@/services/desktop-logger';
 
 type QueryValue = boolean | number | string | null | undefined;
 type Query = Readonly<Record<string, QueryValue>>;
-const PRODUCTION_API_ORIGIN = 'https://music-library2.coolify.hesamian.com';
 
 interface RequestOptions {
   authenticated?: boolean;
@@ -58,15 +57,16 @@ export class ApiError extends Error {
 }
 
 function resolveApiBaseUrl(): string {
-  const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
-  if (configuredUrl) {
-    return configuredUrl.endsWith('/api') ? configuredUrl : `${configuredUrl}/api`;
-  }
+  if (Platform.OS !== 'web') return API_BASE_URL;
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     const { hostname, origin, port, protocol } = window.location;
     if (protocol === 'tauri:' || hostname === 'tauri.localhost') {
-      return `${PRODUCTION_API_ORIGIN}/api`;
+      return API_BASE_URL;
+    }
+    const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
+    if (configuredUrl) {
+      return configuredUrl.endsWith('/api') ? configuredUrl : `${configuredUrl}/api`;
     }
     if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '3000') {
       return `${protocol}//${hostname}:3000/api`;
@@ -76,11 +76,7 @@ function resolveApiBaseUrl(): string {
     }
   }
 
-  const developmentHost = Constants.expoConfig?.hostUri?.split(':')[0];
-  if (__DEV__) {
-    return `http://${developmentHost || 'localhost'}:3000/api`;
-  }
-  return `${PRODUCTION_API_ORIGIN}/api`;
+  return API_BASE_URL;
 }
 
 function errorMessage(body: NestErrorBody | undefined, status: number): string {

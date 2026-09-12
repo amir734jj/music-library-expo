@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { ClientLogLevel, ClientLogRequest } from '@music-library/core';
 import Constants from 'expo-constants';
 
+import { CLIENT_LOG_URL } from '@/constants/endpoints';
+
 const isTauri = typeof window !== 'undefined'
   && ('__TAURI_INTERNALS__' in window
     || window.location.protocol === 'tauri:'
@@ -51,6 +53,10 @@ class DesktopLogger {
     return this.write('ERROR', message);
   }
 
+  reportError(error: Error, context: string, stack = error.stack): Promise<void> {
+    return this.write('ERROR', `${error.name}: ${error.message}`, context, stack);
+  }
+
   private async write(
     level: 'ERROR' | 'INFO',
     message: string,
@@ -70,7 +76,7 @@ class DesktopLogger {
       version: Constants.expoConfig?.version,
     };
     const endpoint = this.supported
-      ? 'https://music-library2.coolify.hesamian.com/api/client-logs'
+      ? CLIENT_LOG_URL
       : `${window.location.origin}/api/client-logs`;
     await Promise.all([
       local,
