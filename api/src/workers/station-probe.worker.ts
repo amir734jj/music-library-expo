@@ -37,7 +37,7 @@ export class StationProbeWorker {
 
   @Interval(PROBE_INTERVAL_MS)
   async runBatch(): Promise<void> {
-    if (this.running) return;
+    if (this.running || !this.dataSource.isInitialized) return;
     this.running = true;
     this.status.startBatch();
     try {
@@ -63,6 +63,10 @@ export class StationProbeWorker {
         );
         index += probeGroup.length;
       }
+    } catch (error) {
+      this.logger.warn(
+        `Probe batch failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       this.status.completeBatch();
       this.running = false;
@@ -129,8 +133,16 @@ export class StationProbeWorker {
       });
       if (captureRequest) this.captureQueue.enqueue(captureRequest);
     } catch (error) {
-      await this.stations.increment({ id: station.id }, "consecutiveProbeFailures", 1);
-      await this.stations.update({ id: station.id }, { lastProbedAt: probedAt });
+      if (this.dataSource.isInitialized) {
+        try {
+          await this.stations.increment({ id: station.id }, "consecutiveProbeFailures", 1);
+          await this.stations.update({ id: station.id }, { lastProbedAt: probedAt });
+        } catch (updateError) {
+          this.logger.debug(
+            `Could not record probe failure for station ${station.id}: ${updateError instanceof Error ? updateError.message : String(updateError)}`,
+          );
+        }
+      }
       this.logger.debug(
         `Probe failed for station ${station.id}: ${error instanceof Error ? error.message : String(error)}`,
       );
