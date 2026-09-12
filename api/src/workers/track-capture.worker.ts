@@ -118,7 +118,7 @@ export class TrackCaptureWorker {
       await this.enforceCacheLimit(maximumBytes);
     } catch (error) {
       this.logger.error(
-        `Capture failed for observation ${request.observationId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Capture failed for observation ${request.observationId} (${safeStreamUrl(request.streamUrl)}): ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
       this.queue.complete(request.observationId);
@@ -175,6 +175,22 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 
 function normalize(value: string): string {
   return value.trim().toLocaleUpperCase("en-US");
+}
+
+function safeStreamUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.username) url.username = "[REDACTED]";
+    if (url.password) url.password = "[REDACTED]";
+    for (const key of url.searchParams.keys()) {
+      if (/^(?:access_token|api_key|authorization|key|password|signature|token)$/iu.test(key)) {
+        url.searchParams.set(key, "[REDACTED]");
+      }
+    }
+    return url.toString();
+  } catch {
+    return "[INVALID_STREAM_URL]";
+  }
 }
 
 function trackKey(artist: string, title: string): string {
