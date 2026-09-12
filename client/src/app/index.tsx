@@ -70,13 +70,16 @@ export default function DiscoverScreen() {
     else if (!quietly) setLoading(true);
     setError(null);
     try {
-      const [stationRows, onAirRows, trendingRows, activityRows] = await Promise.all([
+      const [stationResult, onAirResult, trendingResult, activityResult] = await Promise.allSettled([
         api.stations(deferredQuery), api.nowPlaying(deferredQuery), api.trending(deferredQuery), api.playbackActivity(),
       ]);
-      setStations(stationRows);
-      setNowPlaying(onAirRows);
-      setTrending(trendingRows);
-      setActivity(activityRows);
+      if (stationResult.status === 'fulfilled') setStations(stationResult.value);
+      if (onAirResult.status === 'fulfilled') setNowPlaying(onAirResult.value);
+      if (trendingResult.status === 'fulfilled') setTrending(trendingResult.value);
+      if (activityResult.status === 'fulfilled') setActivity(activityResult.value);
+
+      const activeResult = mode === 'air' ? onAirResult : mode === 'stations' ? stationResult : trendingResult;
+      if (activeResult.status === 'rejected') throw activeResult.reason;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not reach the music library.');
     } finally {
@@ -166,6 +169,10 @@ export default function DiscoverScreen() {
     setVisibleCount(DISCOVER_PAGE_SIZE);
   }, [deferredQuery, mode]);
 
+  useEffect(() => {
+    setError(null);
+  }, [mode]);
+
   async function selectStation(station: StationSummary): Promise<void> {
     setSelectedStation(station);
     setCachedTracks(await api.stationCachedTracks(station.id).catch(() => []));
@@ -206,7 +213,7 @@ export default function DiscoverScreen() {
               <View style={styles.primaryColumn}>
                 {mode === 'air' && <><SectionHeader count={nowPlaying.length} title="On air now" />{nowPlaying.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? emptyCatalogMessage : 'No live metadata matched this search.'}</EmptyState>}{nowPlaying.slice(0, visibleCount).map((item) => <Row key={item.stationId}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText numberOfLines={1} style={styles.itemTitle}>{trackName(item.artist, item.title, 'Metadata pending')}</ThemedText><ThemedText themeColor="textSecondary">{item.stationName}</ThemedText></View><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(item.stationId, item.stationName, item.title || item.stationName, item.artist)} />{ripAction(item.stationId, item.stationName)}</View></View><ThemedText style={styles.meta} themeColor="textSecondary">{playedTime(item.observedAt, now)}</ThemedText></Row>)}{nowPlaying.length > visibleCount && <View style={styles.loadMore}><ActionButton label="Load more" quiet onPress={() => setVisibleCount((count) => count + DISCOVER_PAGE_SIZE)} /></View>}</>}
                 {mode === 'stations' && <><SectionHeader count={stations.length} title="Station directory" />{stations.length === 0 && <EmptyState>{deferredQuery ? 'No stations matched this search.' : emptyCatalogMessage}</EmptyState>}{stations.slice(0, visibleCount).map((station) => <Row key={station.id} onPress={() => void selectStation(station)} selected={selectedStation?.id === station.id}><View style={styles.rowTop}><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{station.name}</ThemedText><ThemedText themeColor="textSecondary">{station.genre || 'Uncategorized'}</ThemedText></View><View style={styles.actions}><ActionButton label="Listen" onPress={() => void playStation(station.id, station.name, station.name)} />{ripAction(station.id, station.name)}</View></View></Row>)}{stations.length > visibleCount && <View style={styles.loadMore}><ActionButton label="Load more" quiet onPress={() => setVisibleCount((count) => count + DISCOVER_PAGE_SIZE)} /></View>}</>}
-                {mode === 'trending' && <><SectionHeader count={trending.length} title="Trending across stations" />{trending.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? 'Trending will appear after stations are imported and probed.' : 'No trending tracks matched this search.'}</EmptyState>}{trending.slice(0, visibleCount).map((item, index) => <Row key={`${item.artist}-${item.title}-${index}`}><View style={styles.rowTop}><View style={styles.rank}><ThemedText style={styles.rankText}>{index + 1}</ThemedText></View><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{trackName(item.artist, item.title, item.artist)}</ThemedText><ThemedText themeColor="textSecondary">{item.observationCount} plays on {item.stationCount} stations</ThemedText></View></View><View style={styles.actions}><ActionButton label="Play station" quiet onPress={() => void playStation(item.lastStationId, item.lastStationName, item.title || item.artist, item.artist)} />{item.cachedTrackId && <ActionButton label="Play cached" onPress={() => void play({ artist: item.artist, description: trackName(item.artist, item.title, item.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(item.cachedTrackId!) }, stationName: item.lastStationName, title: item.title || item.artist })} />}{deviceCacheSupported && item.cachedTrackId && <ActionButton label="Save" quiet onPress={() => void saveTrack(item.cachedTrackId!, `${trackName(item.artist, item.title, item.artist)}.mp3`, item.lastStationName)} />}</View></Row>)}{trending.length > visibleCount && <View style={styles.loadMore}><ActionButton label="Load more" quiet onPress={() => setVisibleCount((count) => count + DISCOVER_PAGE_SIZE)} /></View>}</>}
+                {mode === 'trending' && <><SectionHeader count={trending.length} title="Trending across stations" />{trending.length === 0 && <EmptyState>{stations.length === 0 && !deferredQuery ? 'Trending will appear after stations are imported and probed.' : 'No trending tracks matched this search.'}</EmptyState>}{trending.slice(0, visibleCount).map((item, index) => <Row key={`${item.artist}-${item.title}-${index}`}><View style={styles.rowTop}><View style={styles.rank}><ThemedText style={styles.rankText}>{index + 1}</ThemedText></View><View style={styles.rowCopy}><ThemedText style={styles.itemTitle}>{trackName(item.artist, item.title, item.artist)}</ThemedText><ThemedText themeColor="textSecondary">{item.observationCount} {item.observationCount === 1 ? 'play' : 'plays'} on {item.stationCount} {item.stationCount === 1 ? 'station' : 'stations'}</ThemedText></View></View><View style={styles.actions}><ActionButton label="Play station" quiet onPress={() => void playStation(item.lastStationId, item.lastStationName, item.title || item.artist, item.artist)} />{item.cachedTrackId && <ActionButton label="Play cached" onPress={() => void play({ artist: item.artist, description: trackName(item.artist, item.title, item.artist), isLive: false, source: { isLive: false, kind: 'remote', uri: api.cachedTrackUrl(item.cachedTrackId!) }, stationName: item.lastStationName, title: item.title || item.artist })} />}{deviceCacheSupported && item.cachedTrackId && <ActionButton label="Save" quiet onPress={() => void saveTrack(item.cachedTrackId!, `${trackName(item.artist, item.title, item.artist)}.mp3`, item.lastStationName)} />}</View></Row>)}{trending.length > visibleCount && <View style={styles.loadMore}><ActionButton label="Load more" quiet onPress={() => setVisibleCount((count) => count + DISCOVER_PAGE_SIZE)} /></View>}</>}
               </View>
               <View style={styles.sideColumn}>
                 <SectionHeader title={selectedStation ? selectedStation.name : 'Station detail'} />

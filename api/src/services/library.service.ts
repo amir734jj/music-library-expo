@@ -72,7 +72,9 @@ export class LibraryService {
       .orderBy("station.lastMetadataAt", "DESC")
       .limit(100)
       .getMany();
-    return stations.map(toNowPlayingSummary);
+    return stations.flatMap((station) =>
+      station.lastMetadataAt ? [toNowPlayingSummary(station)] : [],
+    );
   }
 
   async getNowPlaying(stationId: string): Promise<NowPlayingSummary | null> {
@@ -330,14 +332,16 @@ function toStationSummary(station: Station): StationSummary {
   };
 }
 
-function toNowPlayingSummary(station: Station): NowPlayingSummary {
+function toNowPlayingSummary(
+  station: Station & { lastMetadataAt: Date },
+): NowPlayingSummary {
   return {
     stationId: station.id,
     stationName: station.name,
     artist: station.currentArtist,
     title: station.currentTitle,
     rawMetadata: station.currentRawMetadata ?? "",
-    observedAt: station.lastMetadataAt!.toISOString(),
+    observedAt: station.lastMetadataAt.toISOString(),
     confidence: Number(station.currentConfidence),
     streamUrl: station.streamUrl,
   };
