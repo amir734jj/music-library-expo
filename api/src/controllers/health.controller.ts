@@ -1,16 +1,10 @@
-import type { ClientLoggingConfiguration, HealthStatus } from "@music-library/core";
+import type { HealthStatus } from "@music-library/core";
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { DataSource } from "typeorm";
-
-import type { Environment } from "#config";
 
 @Controller()
 export class HealthController {
-  constructor(
-    private readonly dataSource: DataSource,
-    private readonly config: ConfigService<Environment, true>,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   @Get("health")
   async getHealth(): Promise<HealthStatus> {
@@ -25,11 +19,4 @@ export class HealthController {
     }
   }
 
-  @Get("client-logging")
-  getClientLogging(): ClientLoggingConfiguration {
-    return {
-      endpoint: this.config.get("clientLoggingEndpoint", { infer: true }),
-      sourceToken: this.config.get("clientLoggingSourceToken", { infer: true }),
-    };
-  }
 }

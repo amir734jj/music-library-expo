@@ -1,5 +1,6 @@
 export { AdminService } from "./admin.service.js";
 export { AuthService, toUserResponse } from "./auth.service.js";
+export { BetterStackLogger } from "./better-stack-logger.service.js";
 export type { StoredTrackFile } from "./encrypted-track-storage.service.js";
 export { EncryptedTrackStorageService } from "./encrypted-track-storage.service.js";
 export { LibraryService } from "./library.service.js";

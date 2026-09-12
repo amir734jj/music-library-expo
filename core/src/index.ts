@@ -26,7 +26,7 @@ export type {
 	StationSummary,
 	TrendingSummary,
 } from "./library.js";
-export type { ClientLoggingConfiguration } from "./logging.js";
+export type { ClientLogLevel, ClientLogRequest } from "./logging.js";
 export type {
 	ArtistSubscriptionSummary,
 	CreateSubscriptionRequest,

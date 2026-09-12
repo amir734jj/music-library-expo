@@ -4,6 +4,9 @@ import AppTabs from '@/components/app-tabs';
 import { PlayerDock } from '@/components/player-dock';
 import { AppProvider } from '@/providers/app-provider';
 import { AppThemeProvider, useThemePreference } from '@/providers/theme-provider';
+import { desktopLogger } from '@/services/desktop-logger';
+
+desktopLogger.installGlobalHandlers();
 
 export default function TabLayout() {
   return <AppThemeProvider><ThemedApplication /></AppThemeProvider>;
