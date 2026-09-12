@@ -5,6 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import type { Environment } from "#config";
 
 interface BetterStackEvent {
+  application: string;
   context?: string;
   dt: string;
   level: string;
@@ -48,6 +49,7 @@ export class BetterStackLogger extends ConsoleLogger {
 
   reportClient(event: ClientLogRequest): void {
     const payload: BetterStackEvent = {
+      application: clientApplication(event.platform),
       dt: event.timestamp,
       level: event.level,
       message: clean(event.message) ?? "Unknown client log message",
@@ -71,6 +73,7 @@ export class BetterStackLogger extends ConsoleLogger {
     context?: string,
   ): void {
     const payload: BetterStackEvent = {
+      application: "music-library-api",
       dt: new Date().toISOString(),
       level,
       message: clean(messageText(message)) ?? "Unknown log message",
@@ -98,6 +101,19 @@ export class BetterStackLogger extends ConsoleLogger {
     } catch {
       // Local Nest logging must continue even when telemetry is unavailable.
     }
+  }
+}
+
+function clientApplication(platform: string): string {
+  switch (platform.trim().toLowerCase()) {
+    case "android":
+      return "music-library-android";
+    case "ios":
+      return "music-library-ios";
+    case "desktop":
+      return "music-library-desktop";
+    default:
+      return "music-library-web";
   }
 }
 
