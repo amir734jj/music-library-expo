@@ -16,13 +16,13 @@ export default function AppTabs() {
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       labelStyle={{ selected: { color: colors.text } }}>
-      {sessionStatus !== 'offline' && <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger hidden={sessionStatus === 'offline'} name="index">
         <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/home.png')}
           renderingMode="template"
         />
-      </NativeTabs.Trigger>}
+      </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
@@ -32,13 +32,13 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      {isAdmin && <NativeTabs.Trigger name="admin">
+      <NativeTabs.Trigger hidden={!isAdmin} name="admin">
         <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
           md={{ default: 'settings', selected: 'settings' }}
         />
-      </NativeTabs.Trigger>}
+      </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="account">
         <NativeTabs.Trigger.Label>
