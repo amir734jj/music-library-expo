@@ -81,17 +81,31 @@ export class TrackCaptureWorker {
         1_024,
       ) * 1_024 * 1_024;
       const song = await this.capture.capture(request.streamUrl, timeoutSeconds * 1_000);
+      const normalizedArtist = normalize(song.artist);
+      const normalizedTitle = normalize(song.title ?? "");
+      const createdAt = new Date();
+      const existing = await this.tracks
+        .createQueryBuilder("track")
+        .where("track.normalizedArtist = :normalizedArtist", { normalizedArtist })
+        .andWhere("track.normalizedTitle = :normalizedTitle", { normalizedTitle })
+        .andWhere("track.expiresAt > :createdAt", { createdAt })
+        .orderBy("track.createdAt", "DESC")
+        .getOne();
+      if (existing && await this.storage.exists(existing.filePath)) {
+        await this.enforceCacheLimit(maximumBytes);
+        return;
+      }
+
       const trackId = randomUUID();
       const stored = await this.storage.save(song.data, key, trackId);
-      const createdAt = new Date();
 
       await this.tracks.save({
         id: trackId,
         playObservationId: request.observationId,
         artist: song.artist,
         title: song.title,
-        normalizedArtist: normalize(song.artist),
-        normalizedTitle: normalize(song.title ?? ""),
+        normalizedArtist,
+        normalizedTitle,
         filePath: stored.filePath,
         contentType: song.contentType,
         plaintextLength: String(stored.plaintextLength),
@@ -117,12 +131,33 @@ export class TrackCaptureWorker {
     const sizes = await Promise.all(tracks.map((track) => this.storage.size(track.filePath)));
     let total = sizes.reduce((sum, size) => sum + size, 0);
     const now = new Date();
+    const newestTrackByKey = new Map<string, string>();
     for (let index = 0; index < tracks.length; index++) {
       const track = tracks[index]!;
-      if (track.expiresAt > now && total <= maximumBytes) continue;
+      if (track.expiresAt <= now || (sizes[index] ?? 0) === 0) continue;
+      newestTrackByKey.set(trackKey(track.normalizedArtist, track.normalizedTitle), track.id);
+    }
+
+    for (let index = 0; index < tracks.length; index++) {
+      const track = tracks[index]!;
+      const size = sizes[index] ?? 0;
+      const isDuplicate = newestTrackByKey.get(
+        trackKey(track.normalizedArtist, track.normalizedTitle),
+      ) !== track.id;
+      if (track.expiresAt > now && size > 0 && !isDuplicate) continue;
       await this.storage.delete(track.filePath);
       await this.tracks.remove(track);
-      total -= sizes[index] ?? 0;
+      total -= size;
+      sizes[index] = 0;
+    }
+
+    for (let index = 0; index < tracks.length && total > maximumBytes; index++) {
+      const track = tracks[index]!;
+      const size = sizes[index] ?? 0;
+      if (size === 0) continue;
+      await this.storage.delete(track.filePath);
+      await this.tracks.remove(track);
+      total -= size;
     }
   }
 }
@@ -140,4 +175,8 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 
 function normalize(value: string): string {
   return value.trim().toLocaleUpperCase("en-US");
+}
+
+function trackKey(artist: string, title: string): string {
+  return `${artist}\u0000${title}`;
 }
