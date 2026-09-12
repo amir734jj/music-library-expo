@@ -1,5 +1,9 @@
 import { isInteger, isString } from "lodash-es";
 
+const DEFAULT_CLIENT_LOGGING_ENDPOINT =
+  "https://s2755028.us-west-2a.betterstackdata.com";
+const DEFAULT_CLIENT_LOGGING_SOURCE_TOKEN = "wn7tejW8byKYUNnLwbKNa9EE";
+
 export interface Environment {
   nodeEnv: "development" | "test" | "production";
   port: number;
@@ -50,10 +54,12 @@ export function validateEnvironment(input: Record<string, unknown>): Environment
     jwtSecret,
     trendingCacheDirectory,
     clientLoggingEndpoint:
-      isString(input.CLIENT_LOGGING_ENDPOINT) ? input.CLIENT_LOGGING_ENDPOINT : "",
+      isString(input.CLIENT_LOGGING_ENDPOINT)
+        ? input.CLIENT_LOGGING_ENDPOINT
+        : DEFAULT_CLIENT_LOGGING_ENDPOINT,
     clientLoggingSourceToken:
       isString(input.CLIENT_LOGGING_SOURCE_TOKEN)
         ? input.CLIENT_LOGGING_SOURCE_TOKEN
-        : "",
+        : DEFAULT_CLIENT_LOGGING_SOURCE_TOKEN,
   };
 }

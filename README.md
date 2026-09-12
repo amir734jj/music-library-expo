@@ -18,6 +18,6 @@ When a matching subscription has capture enabled, `TrackCaptureQueue` schedules 
 
 ## Better Stack Logging
 
-Configure `CLIENT_LOGGING_ENDPOINT` and `CLIENT_LOGGING_SOURCE_TOKEN` on the API deployment. The endpoint accepts either the Better Stack ingestion hostname or its HTTPS URL. Keep the source token server-side; Android and desktop clients send bounded, sanitized events to `/api/client-logs`, and the API forwards them to Better Stack.
+The API includes default Better Stack ingestion credentials. `CLIENT_LOGGING_ENDPOINT` and `CLIENT_LOGGING_SOURCE_TOKEN` can override those defaults during deployment. Android and desktop clients send bounded, sanitized events to `/api/client-logs`, and the API forwards them to Better Stack without embedding the token in client bundles.
 
 Client telemetry captures JavaScript errors and startup events after the application runtime initializes. Native Android crashes that occur before JavaScript starts require Android crash logs or a native crash-reporting SDK.
