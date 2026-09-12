@@ -21,6 +21,7 @@ export interface NowPlayingSummary {
 export interface TrendingSummary {
   artist: string;
   title: string | null;
+  genres: string[];
   observationCount: number;
   stationCount: number;
   lastObservedAt: string;

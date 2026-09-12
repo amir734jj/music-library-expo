@@ -145,9 +145,13 @@ export class LibraryService {
       .map(([key, group]) => {
         const latest = group[0]!;
         const track = availableTracks.get(key);
+        const genres = [...new Set(
+          group.map((observation) => observation.station.genre.trim()).filter(Boolean),
+        )].sort((left, right) => left.localeCompare(right));
         return {
           artist: latest.artist!.trim(),
           title: latest.title?.trim() || null,
+          genres,
           observationCount: group.length,
           stationCount: new Set(group.map((item) => item.stationId)).size,
           lastObservedAt: latest.observedAt.toISOString(),
