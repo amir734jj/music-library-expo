@@ -1,5 +1,6 @@
 import { UserRole } from '@music-library/core';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Tabs } from 'expo-router';
+import { Image } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { useApp } from '@/providers/app-provider';
@@ -12,43 +13,50 @@ export default function AppTabs() {
   const isAdmin = user?.roles.includes(UserRole.Admin) ?? false;
 
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger hidden={sessionStatus === 'offline'} name="index">
-        <NativeTabs.Trigger.Label>Discover</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Library</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger hidden={!isAdmin} name="admin">
-        <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
-          md={{ default: 'settings', selected: 'settings' }}
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="account">
-        <NativeTabs.Trigger.Label>
-          {sessionStatus === 'anonymous' || sessionStatus === 'offline' ? 'Sign in' : 'Account'}
-        </NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: 'person', selected: 'person.fill' }}
-          md={{ default: 'person', selected: 'person' }}
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        lazy: true,
+        sceneStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: { backgroundColor: colors.backgroundElement },
+      }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: sessionStatus === 'offline' ? null : '/',
+          tabBarIcon: ({ color, size }) => (
+            <Image
+              source={require('@/assets/images/tabIcons/home.png')}
+              style={{ height: size, tintColor: color, width: size }}
+            />
+          ),
+          title: 'Discover',
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Image
+              source={require('@/assets/images/tabIcons/explore.png')}
+              style={{ height: size, tintColor: color, width: size }}
+            />
+          ),
+          title: 'Library',
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{ href: isAdmin ? '/admin' : null, title: 'Admin' }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: sessionStatus === 'anonymous' || sessionStatus === 'offline' ? 'Sign in' : 'Account',
+        }}
+      />
+    </Tabs>
   );
 }
