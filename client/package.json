@@ -8,6 +8,7 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-updater": "^2.11.0",
     "expo": "~56.0.21",
+    "expo-asset": "~56.0.25",
     "expo-audio": "~56.0.9",
     "expo-constants": "~56.0.25",
     "expo-device": "~56.0.4",

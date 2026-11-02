@@ -10,6 +10,11 @@ The API uses the public `@amir734jj/stream-ripper@1.0.1` npm package for ICY met
 npm install
 ```
 
+Keep `expo-asset` as a direct client dependency aligned with Expo SDK 56. This
+prevents npm from selecting an incompatible asset package through peer
+dependencies, which breaks web export with a missing `expo/internal/bundle-origin`
+module.
+
 ## Stream Processing
 
 `StreamMetadataProbeService` starts `StreamRipper` in metadata-only mode. `StationProbeWorker` applies database-configured batching, concurrency, and timeout values, records metadata changes, and creates subscription alerts.
