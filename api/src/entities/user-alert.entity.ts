@@ -3,6 +3,8 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from "typeorm";
 @Entity({ name: "user_alerts" })
 @Index("UQ_user_alerts_subscription_observation", ["artistSubscriptionId", "playObservationId"], { unique: true })
 @Index("IX_user_alerts_user_id", ["userId"])
+@Index("IX_user_alerts_cleanup", ["createdAt", "id"])
+@Index("IX_user_alerts_observation", ["playObservationId"])
 export class UserAlert {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column({ name: "user_id", type: "uuid" }) userId!: string;

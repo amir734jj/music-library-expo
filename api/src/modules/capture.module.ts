@@ -19,6 +19,6 @@ import { TrackCaptureWorker } from "#workers";
     TrackCaptureQueue,
     TrackCaptureWorker,
   ],
-  exports: [StationCaptureLeaseService, TrackCaptureQueue],
+  exports: [EncryptedTrackStorageService, StationCaptureLeaseService, TrackCaptureQueue],
 })
 export class CaptureModule {}

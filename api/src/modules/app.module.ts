@@ -7,8 +7,10 @@ import { join } from "node:path";
 
 import { validateEnvironment, type Environment } from "#config";
 import { createDatabaseOptions } from "#database";
+import { HistoryCleanupWorker } from "../workers/history-cleanup.worker.js";
 import { AdminModule } from "./admin.module.js";
 import { AuthModule } from "./auth.module.js";
+import { CaptureModule } from "./capture.module.js";
 import { EntitiesModule } from "./entities.module.js";
 import { HealthModule } from "./health.module.js";
 import { LibraryModule } from "./library.module.js";
@@ -33,6 +35,7 @@ import { UsersModule } from "./users.module.js";
         createDatabaseOptions(config),
     }),
     ScheduleModule.forRoot(),
+    CaptureModule,
     AdminModule,
     HealthModule,
     LibraryModule,
@@ -42,5 +45,6 @@ import { UsersModule } from "./users.module.js";
     ProbingModule,
     UsersModule,
   ],
+  providers: [HistoryCleanupWorker],
 })
 export class AppModule {}

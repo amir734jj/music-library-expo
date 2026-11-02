@@ -4,6 +4,7 @@ import { Station } from "./station.entity.js";
 
 @Entity({ name: "play_observations" })
 @Index("IX_play_observations_artist_observed_at", ["artist", "observedAt"])
+@Index("IX_play_observations_cleanup", ["observedAt", "id"])
 export class PlayObservation {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column({ name: "station_id", type: "uuid" }) stationId!: string;

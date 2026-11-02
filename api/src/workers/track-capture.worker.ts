@@ -3,9 +3,9 @@ import { Interval } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
 import { isInteger } from "lodash-es";
 import { randomUUID } from "node:crypto";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 
-import { CachedTrack, GlobalConfigRow } from "#entities";
+import { CachedTrack, GlobalConfigRow, PlayObservation } from "#entities";
 import {
   EncryptedTrackStorageService,
   StreamTrackCaptureService,
@@ -18,6 +18,7 @@ export class TrackCaptureWorker {
   private running = false;
 
   constructor(
+    private readonly dataSource: DataSource,
     private readonly queue: TrackCaptureQueue,
     private readonly capture: StreamTrackCaptureService,
     private readonly storage: EncryptedTrackStorageService,
@@ -97,24 +98,41 @@ export class TrackCaptureWorker {
       }
 
       const trackId = randomUUID();
-      const stored = await this.storage.save(song.data, key, trackId);
-
-      await this.tracks.save({
-        id: trackId,
-        playObservationId: request.observationId,
-        artist: song.artist,
-        title: song.title,
-        normalizedArtist,
-        normalizedTitle,
-        filePath: stored.filePath,
-        contentType: song.contentType,
-        plaintextLength: String(stored.plaintextLength),
-        bitrateKbps: song.bitrateKbps,
-        durationMs: song.durationMs,
-        keyFingerprint: stored.keyFingerprint,
-        createdAt,
-        expiresAt: new Date(createdAt.getTime() + retentionHours * 60 * 60 * 1_000),
-      });
+      let storedPath: string | undefined;
+      try {
+        await this.dataSource.transaction(async (manager) => {
+          // Keep retention cleanup from deleting the observation during file creation.
+          const observation = await manager.getRepository(PlayObservation).findOne({
+            where: { id: request.observationId },
+            lock: { mode: "pessimistic_read" },
+          });
+          if (!observation) {
+            this.logger.warn(`Capture discarded because observation ${request.observationId} was removed`);
+            return;
+          }
+          const stored = await this.storage.save(song.data, key, trackId);
+          storedPath = stored.filePath;
+          await manager.getRepository(CachedTrack).save({
+            id: trackId,
+            playObservationId: request.observationId,
+            artist: song.artist,
+            title: song.title,
+            normalizedArtist,
+            normalizedTitle,
+            filePath: stored.filePath,
+            contentType: song.contentType,
+            plaintextLength: String(stored.plaintextLength),
+            bitrateKbps: song.bitrateKbps,
+            durationMs: song.durationMs,
+            keyFingerprint: stored.keyFingerprint,
+            createdAt,
+            expiresAt: new Date(createdAt.getTime() + retentionHours * 60 * 60 * 1_000),
+          });
+        });
+      } catch (error) {
+        if (storedPath) await this.storage.delete(storedPath);
+        throw error;
+      }
       await this.enforceCacheLimit(maximumBytes);
     } catch (error) {
       this.logger.error(

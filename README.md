@@ -21,6 +21,24 @@ module.
 
 When a matching subscription has capture enabled, `TrackCaptureQueue` schedules the observation. `StreamTrackCaptureService` waits for the next ICY song boundary, and `TrackCaptureWorker` writes the completed audio with AES-256-GCM encryption and an atomic filesystem rename. Configure a Base64-encoded 32-byte key in `TRENDING_CACHE_ENCRYPTION_KEY` before enabling capture.
 
+## Database Retention
+
+Every minute, the API removes play observations and alerts older than seven days
+and trims the oldest rows above 1,000,000 observations or 100,000 alerts. These
+are periodic cleanup targets, not synchronous insert limits: traffic can
+temporarily exceed them between runs. Each run deletes up to 20 batches of 1,000
+rows per table; larger backlogs drain over subsequent runs. Failures are logged
+and retried on the next run.
+
+Removing observations also removes associated alerts and cached-track records
+through database cascades. The worker deletes associated encrypted audio files
+before removing observations. Users, subscriptions, and stations are not pruned.
+Production startup automatically applies the supporting index migration.
+
+Keep PostgreSQL autovacuum enabled so deleted-row space can be reused. Retention
+does not impose a database byte-size limit or immediately shrink database files;
+monitor database size, free disk space, and cleanup errors in production.
+
 ## Better Stack Logging
 
 The API includes default Better Stack ingestion credentials. `CLIENT_LOGGING_ENDPOINT` and `CLIENT_LOGGING_SOURCE_TOKEN` can override those defaults during deployment. Android and desktop clients send bounded, sanitized events to `/api/client-logs`, and the API forwards them to Better Stack without embedding the token in client bundles.
