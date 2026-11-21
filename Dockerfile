@@ -9,14 +9,19 @@ RUN npm install --workspaces --include-workspace-root
 RUN npm run build --workspace @music-library/core \
     && npm run export:web --workspace @music-library/client \
     && npm run build --workspace @music-library/api \
-    && npm prune --omit=dev --workspaces --include-workspace-root \
     && mkdir -p /release/api /release/core \
-    && cp -R node_modules /release/node_modules \
     && cp api/package.json /release/api/package.json \
     && cp -R api/dist /release/api/dist \
     && cp core/package.json /release/core/package.json \
     && cp -R core/dist /release/core/dist \
     && cp -R client/dist /release/api/public
+
+FROM node:24-alpine AS production-deps
+WORKDIR /workspace
+COPY package.json ./
+COPY api/package.json ./api/package.json
+COPY core/package.json ./core/package.json
+RUN npm install --omit=dev --workspace @music-library/api --workspace @music-library/core
 
 FROM node:24-alpine AS runtime
 WORKDIR /app
@@ -25,6 +30,7 @@ ENV PORT=8080
 ENV TRENDING_CACHE_DIRECTORY=/data/trending-cache
 
 COPY --from=build /release .
+COPY --from=production-deps /workspace/node_modules ./node_modules
 
 WORKDIR /app/api
 EXPOSE 8080
